@@ -1,0 +1,6 @@
+{
+  "name": "HARMONIC - SHM Physics Card Game",
+  "description": "เกมการ์ดสไตล์ UNO ผสมโจทย์ฟิสิกส์ Simple Harmonic Motion (SHM) รองรับการสร้างห้องออนไลน์ แชร์รหัสห้องเล่นกับเพื่อน ภาษาไทยเข้าใจง่าย พร้อมระบบซ่อนไพ่อีกฝั่งและแอนิเมชันเต็มรูปแบบ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
