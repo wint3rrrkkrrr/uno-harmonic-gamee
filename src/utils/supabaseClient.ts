@@ -15,7 +15,11 @@ const STORAGE_SUPABASE_KEY = 'harmonic_supabase_anon_key';
 const STORAGE_SAVED_ROOM = 'harmonic_session_room';
 const STORAGE_SAVED_PLAYER = 'harmonic_session_player';
 
-// Retrieve config from Vite environment variables or localStorage
+// Default project credentials provided by user
+const DEFAULT_SUPABASE_URL = 'https://wsxciqcttxckgohfvexq.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_eaELQn8ThnZIVXRbxjPz3A_X1SEvRMd';
+
+// Retrieve config from Vite environment variables, localStorage, or defaults
 export function getSupabaseCredentials(): { url: string; anonKey: string } {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -24,8 +28,8 @@ export function getSupabaseCredentials(): { url: string; anonKey: string } {
   const localKey = localStorage.getItem(STORAGE_SUPABASE_KEY) || '';
 
   return {
-    url: (envUrl || localUrl).trim(),
-    anonKey: (envKey || localKey).trim(),
+    url: (envUrl || localUrl || DEFAULT_SUPABASE_URL).trim(),
+    anonKey: (envKey || localKey || DEFAULT_SUPABASE_KEY).trim(),
   };
 }
 

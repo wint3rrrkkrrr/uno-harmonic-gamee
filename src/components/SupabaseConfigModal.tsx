@@ -10,13 +10,15 @@ import {
 interface SupabaseConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfigSaved: () => void;
+  onConfigSaved?: () => void;
+  onSaveSuccess?: () => void;
 }
 
 export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({
   isOpen,
   onClose,
   onConfigSaved,
+  onSaveSuccess,
 }) => {
   const currentCreds = getSupabaseCredentials();
   const [urlInput, setUrlInput] = useState(currentCreds.url);
@@ -27,6 +29,11 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({
   const [activeTab, setActiveTab] = useState<'CONFIG' | 'SQL' | 'NETLIFY_GUIDE'>('CONFIG');
 
   if (!isOpen) return null;
+
+  const notifySaved = () => {
+    if (typeof onConfigSaved === 'function') onConfigSaved();
+    if (typeof onSaveSuccess === 'function') onSaveSuccess();
+  };
 
   const handleTestAndSave = async () => {
     if (!urlInput.trim() || !keyInput.trim()) {
@@ -56,7 +63,7 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({
           success: true,
           msg: 'เชื่อมต่อ Supabase สำเร็จแล้ว! แต่ยังไม่พบตาราง "rooms" กรุณาคัดลอก SQL ในแท็บ "📜 SQL Setup" ไปรันใน Supabase SQL Editor',
         });
-        onConfigSaved();
+        notifySaved();
       } else if (error) {
         setTestResult({
           success: false,
@@ -67,7 +74,7 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({
           success: true,
           msg: '🎉 เชื่อมต่อ Supabase สำเร็จและพบตาราง rooms เรียบร้อยแล้ว!',
         });
-        onConfigSaved();
+        notifySaved();
       }
     } catch (e: any) {
       setTestResult({
@@ -87,7 +94,7 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({
       success: true,
       msg: 'ล้างค่าการเชื่อมต่อเรียบร้อยแล้ว',
     });
-    onConfigSaved();
+    notifySaved();
   };
 
   const sqlScript = `-- รันคำสั่งนี้ใน Supabase Dashboard -> SQL Editor -> New query
