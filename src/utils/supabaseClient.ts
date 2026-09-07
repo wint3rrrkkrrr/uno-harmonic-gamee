@@ -16,32 +16,47 @@ const STORAGE_SAVED_ROOM = 'harmonic_session_room';
 const STORAGE_SAVED_PLAYER = 'harmonic_session_player';
 
 // Default project credentials provided by user
-const DEFAULT_SUPABASE_URL = 'https://wsxciqcttxckgohfvexq.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'sb_publishable_eaELQn8ThnZIVXRbxjPz3A_X1SEvRMd';
+export const DEFAULT_SUPABASE_URL = 'https://wsxciqcttxckgohfvexq.supabase.co';
+export const DEFAULT_SUPABASE_KEY = 'sb_publishable_eaELQn8ThnZIVXRbxjPz3A_X1SEvRMd';
 
 // Retrieve config from Vite environment variables, localStorage, or defaults
 export function getSupabaseCredentials(): { url: string; anonKey: string } {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  let localUrl = '';
+  let localKey = '';
+  try {
+    localUrl = localStorage.getItem(STORAGE_SUPABASE_URL) || '';
+    localKey = localStorage.getItem(STORAGE_SUPABASE_KEY) || '';
+  } catch {}
 
-  const localUrl = localStorage.getItem(STORAGE_SUPABASE_URL) || '';
-  const localKey = localStorage.getItem(STORAGE_SUPABASE_KEY) || '';
+  const envUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
+  const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || '';
 
-  return {
-    url: (envUrl || localUrl || DEFAULT_SUPABASE_URL).trim(),
-    anonKey: (envKey || localKey || DEFAULT_SUPABASE_KEY).trim(),
-  };
+  const url = (localUrl || envUrl || DEFAULT_SUPABASE_URL).trim();
+  let anonKey = (localKey || envKey || DEFAULT_SUPABASE_KEY).trim();
+
+  // If localKey was some broken placeholder or truncated string, fallback to default
+  if (!anonKey || anonKey.length < 20 || anonKey.includes('your-anon-key')) {
+    anonKey = DEFAULT_SUPABASE_KEY;
+  }
+
+  return { url, anonKey };
 }
 
 export function saveCustomSupabaseCredentials(url: string, anonKey: string) {
-  localStorage.setItem(STORAGE_SUPABASE_URL, url.trim());
-  localStorage.setItem(STORAGE_SUPABASE_KEY, anonKey.trim());
+  try {
+    localStorage.setItem(STORAGE_SUPABASE_URL, url.trim());
+    localStorage.setItem(STORAGE_SUPABASE_KEY, anonKey.trim());
+    localStorage.removeItem('sb-wsxciqcttxckgohfvexq-auth-token');
+  } catch {}
   _client = null; // Reset cached client
 }
 
 export function clearCustomSupabaseCredentials() {
-  localStorage.removeItem(STORAGE_SUPABASE_URL);
-  localStorage.removeItem(STORAGE_SUPABASE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_SUPABASE_URL);
+    localStorage.removeItem(STORAGE_SUPABASE_KEY);
+    localStorage.removeItem('sb-wsxciqcttxckgohfvexq-auth-token');
+  } catch {}
   _client = null;
 }
 
@@ -51,23 +66,38 @@ export function isSupabaseConfigured(): boolean {
 }
 
 let _client: SupabaseClient | null = null;
+let _cachedUrl = '';
+let _cachedKey = '';
 
-export function getSupabase(): SupabaseClient | null {
-  if (_client) return _client;
-
+export function getSupabase(forceFresh = false): SupabaseClient | null {
   const { url, anonKey } = getSupabaseCredentials();
   if (!url || !anonKey || !url.startsWith('http')) {
     return null;
   }
 
+  if (!forceFresh && _client && _cachedUrl === url && _cachedKey === anonKey) {
+    return _client;
+  }
+
   try {
+    try {
+      localStorage.removeItem('sb-wsxciqcttxckgohfvexq-auth-token');
+    } catch {}
+
     _client = createClient(url, anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
       realtime: {
         params: {
           eventsPerSecond: 10,
         },
       },
     });
+    _cachedUrl = url;
+    _cachedKey = anonKey;
     return _client;
   } catch (err) {
     console.error('Failed to initialize Supabase client:', err);
@@ -186,7 +216,8 @@ export async function createRoomInSupabase(
     version: 1,
   };
 
-  const { data, error } = await supabase
+  let activeSupabase = supabase;
+  let { data, error } = await activeSupabase
     .from('rooms')
     .insert({
       room_code: roomCode,
@@ -198,6 +229,27 @@ export async function createRoomInSupabase(
     })
     .select()
     .single();
+
+  // Self-healing: If stale custom credentials caused an Invalid API Key error, revert to working default and retry once
+  if (error && (error.message?.includes('Invalid API key') || (error as any).code === 'PGRST301')) {
+    console.warn('Invalid API key detected. Resetting to project default credentials and retrying...');
+    clearCustomSupabaseCredentials();
+    activeSupabase = getSupabase(true) || activeSupabase;
+    const retryRes = await activeSupabase
+      .from('rooms')
+      .insert({
+        room_code: roomCode,
+        host_id: hostId,
+        status: 'LOBBY',
+        version: 1,
+        players: [hostPlayer],
+        state: initialLobbyState,
+      })
+      .select()
+      .single();
+    data = retryRes.data;
+    error = retryRes.error;
+  }
 
   if (error) {
     console.error('Error creating room in Supabase:', error);
@@ -231,11 +283,25 @@ export async function joinRoomInSupabase(
 
   const cleanCode = roomCode.trim().toUpperCase();
 
-  const { data: room, error: fetchErr } = await supabase
+  let activeSupabase = supabase;
+  let { data: room, error: fetchErr } = await activeSupabase
     .from('rooms')
     .select('*')
     .eq('room_code', cleanCode)
     .single();
+
+  if (fetchErr && (fetchErr.message?.includes('Invalid API key') || (fetchErr as any).code === 'PGRST301')) {
+    console.warn('Invalid API key detected during join. Resetting to project default credentials and retrying...');
+    clearCustomSupabaseCredentials();
+    activeSupabase = getSupabase(true) || activeSupabase;
+    const retry = await activeSupabase
+      .from('rooms')
+      .select('*')
+      .eq('room_code', cleanCode)
+      .single();
+    room = retry.data;
+    fetchErr = retry.error;
+  }
 
   if (fetchErr || !room) {
     throw new Error(`ไม่พบห้องรหัส "${cleanCode}" กรุณาตรวจสอบรหัสห้องอีกครั้ง`);

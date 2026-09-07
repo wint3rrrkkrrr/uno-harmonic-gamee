@@ -5,6 +5,8 @@ import {
   clearCustomSupabaseCredentials,
   isSupabaseConfigured,
   getSupabase,
+  DEFAULT_SUPABASE_URL,
+  DEFAULT_SUPABASE_KEY,
 } from '../utils/supabaseClient';
 
 interface SupabaseConfigModalProps {
@@ -84,6 +86,17 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({
     } finally {
       setTesting(false);
     }
+  };
+
+  const handleResetToDefault = () => {
+    clearCustomSupabaseCredentials();
+    setUrlInput(DEFAULT_SUPABASE_URL);
+    setKeyInput(DEFAULT_SUPABASE_KEY);
+    setTestResult({
+      success: true,
+      msg: 'โหลดค่าเริ่มต้นของโปรเจกต์เรียบร้อยแล้ว กด "บันทึกและทดสอบการเชื่อมต่อ" ได้เลย',
+    });
+    notifySaved();
   };
 
   const handleClear = () => {
@@ -267,8 +280,15 @@ END $$;`;
                   {testing ? '⏳ กำลังทดสอบ...' : '💾 บันทึกและทดสอบการเชื่อมต่อ'}
                 </button>
                 <button
+                  onClick={handleResetToDefault}
+                  className="py-3 px-3 rounded-xl bg-cyan-950/70 hover:bg-cyan-900 text-cyan-300 font-bold text-xs border border-cyan-500/30 transition-colors"
+                  title="คืนค่าคอนฟิกเริ่มต้นของโปรเจกต์"
+                >
+                  🔄 คืนค่าเริ่มต้น
+                </button>
+                <button
                   onClick={handleClear}
-                  className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-white/10"
+                  className="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-white/10"
                 >
                   ล้างค่า
                 </button>
