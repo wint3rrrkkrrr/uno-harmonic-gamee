@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Card, CardColor, GameState, Player } from '../types/game';
+import { motion, AnimatePresence } from 'motion/react';
+import { Card, GameState } from '../types/game';
 import { CardView } from './CardView';
 import { ActionBanner } from './ActionBanner';
-import { canPlayCard, getColorBg, getColorBorder, getColorText } from '../utils/cardUtils';
+import { canPlayCard, getColorBg } from '../utils/cardUtils';
 
 interface GameBoardProps {
   state: GameState;
@@ -27,11 +28,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onCatchHarmonic,
   onPlayDrawnCardChoice,
   onOpenHowToPlay,
-  onSaveGame,
   onResetGame,
   isOnlineMode = false,
 }) => {
-  const [showLogDrawer, setShowLogDrawer] = useState(false);
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
 
   const {
@@ -43,18 +42,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     currentColor,
     drawnCardChoice,
     turnsCount,
-    logs,
     actionAnnouncement,
     roomId,
   } = state;
 
   const currentPlayer = players[currentPlayerIndex];
-  // Local player is the person playing on this device/client
   const localPlayer = players.find((p) => p.id === localPlayerId) || players[0];
   const isMyTurn = currentPlayer?.id === localPlayer?.id;
   const topCard = discardPile[discardPile.length - 1];
 
-  // Helper to flash warning
   const triggerWarning = (msg: string) => {
     setWarningMsg(msg);
     setTimeout(() => setWarningMsg(null), 2500);
@@ -69,22 +65,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     if (canPlayCard(card, topCard, currentColor)) {
       onPlayCard(card);
     } else {
-      triggerWarning('❌ ลงไพ่ใบนี้ไม่ได้! ต้องเป็นสีเดียวกัน หรือตัวเลข/สัญลักษณ์เดียวกันกับกองทิ้ง');
+      triggerWarning('❌ ลงไพ่ใบนี้ไม่ได้! ต้องสีเดียวกัน หรือเลข/สัญลักษณ์เดียวกันกับกองทิ้ง');
     }
   };
 
-  // Check if anyone has 1 card and forgot to call Harmonic
   const uncalledHarmonicPlayers = players.filter(
     (p) => p.hand.length === 1 && !p.calledHarmonic
   );
 
   return (
-    <div className="relative min-h-screen w-full bg-[#08090d] bg-physics-grid text-slate-100 flex flex-col justify-between overflow-hidden select-none">
-      {/* Action Announcement Overlay Banner */}
+    <div className="relative h-screen max-h-screen w-full bg-[#08090e] bg-physics-grid text-slate-100 flex flex-col justify-between overflow-hidden select-none">
+      {/* Action Announcement Overlay Banner - Compact & Floating */}
       <ActionBanner announcement={actionAnnouncement || null} />
 
-      {/* Background SHM Wave Canvas Texture */}
-      <div className="absolute inset-0 pointer-events-none opacity-20 overflow-hidden">
+      {/* Subtle Background Sine Waves */}
+      <div className="absolute inset-0 pointer-events-none opacity-15 overflow-hidden">
         <svg
           className="w-full h-full"
           viewBox="0 0 1200 600"
@@ -93,422 +88,352 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           stroke="currentColor"
         >
           <path
-            d="M 0 300 Q 150 100, 300 300 T 600 300 T 900 300 T 1200 300"
+            d="M 0 300 Q 150 120, 300 300 T 600 300 T 900 300 T 1200 300"
             stroke="#06b6d4"
-            strokeWidth="2"
-          />
-          <path
-            d="M 0 300 Q 150 500, 300 300 T 600 300 T 900 300 T 1200 300"
-            stroke="#f43f5e"
             strokeWidth="1.5"
-            opacity="0.5"
           />
         </svg>
       </div>
 
       {/* ================= TOP NAVIGATION BAR ================= */}
-      <header className="relative z-20 px-3 sm:px-6 py-2.5 glass-panel border-b border-white/10 flex items-center justify-between">
+      <header className="relative z-20 px-3 sm:px-5 py-2 glass-panel border-b border-white/10 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2 sm:gap-3">
-          <span className="text-xl text-rose-500 font-black drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]">∿</span>
-          <span className="font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-cyan-300 to-amber-300 text-sm sm:text-base drop-shadow-sm">
+          <span className="text-lg text-rose-500 font-black">∿</span>
+          <span className="font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-cyan-300 to-amber-300 text-sm sm:text-base">
             HARMONIC
           </span>
-          <span className="hidden sm:inline-block text-[11px] font-mono font-semibold text-slate-400 bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-white/10 shadow-inner">
-            รอบที่ #{turnsCount}
+          <span className="text-[10px] font-mono text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded-full border border-white/10">
+            #{turnsCount}
           </span>
           {roomId && (
-            <span className="text-[11px] font-mono font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-400/40 px-2.5 py-0.5 rounded-full">
+            <span className="text-[10px] font-mono font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-400/40 px-2 py-0.5 rounded-full">
               ห้อง: {roomId}
             </span>
           )}
         </div>
 
-        {/* Catch button alert if uncalled harmonic exists */}
+        {/* Catch Harmonic Alert */}
         {uncalledHarmonicPlayers.length > 0 && (
-          <div className="flex items-center gap-2 animate-bounce">
-            <button
-              onClick={() => onCatchHarmonic(uncalledHarmonicPlayers[0].id)}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs rounded-full shadow-lg shadow-amber-500/40 border border-amber-200 flex items-center gap-1.5 transition-transform hover:scale-105"
-            >
-              <span>🚨 จับได้! ({uncalledHarmonicPlayers[0].name} ลืมพูด HARMONIC)</span>
-            </button>
-          </div>
+          <motion.button
+            initial={{ scale: 0.9 }}
+            animate={{ scale: [0.95, 1.05, 0.95] }}
+            transition={{ repeat: Infinity, duration: 1 }}
+            onClick={() => onCatchHarmonic(uncalledHarmonicPlayers[0].id)}
+            className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-full shadow-lg border border-amber-200 flex items-center gap-1 cursor-pointer"
+          >
+            <span>🚨 จับได้! {uncalledHarmonicPlayers[0].name} ลืมพูด HARMONIC</span>
+          </motion.button>
         )}
 
-        {/* Utility Controls */}
+        {/* Action Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={onOpenHowToPlay}
-            title="เปิดอ่านกติกาการเล่นอย่างละเอียด"
-            className="px-3 py-1.5 bg-cyan-600/90 hover:bg-cyan-500 text-slate-950 text-xs font-black rounded-xl border border-cyan-300 shadow-md shadow-cyan-950/40 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
+            title="เปิดอ่านกติกาการเล่น"
+            className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-white/10 transition-colors flex items-center gap-1 cursor-pointer"
           >
             <span>📖</span>
-            <span>กติกาการเล่น</span>
-          </button>
-          {!isOnlineMode && (
-            <button
-              onClick={onSaveGame}
-              title="บันทึกเกมปัจจุบัน"
-              className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-white/10 hover:border-white/20 transition-all shadow-sm active:scale-95 flex items-center gap-1"
-            >
-              <span>💾</span>
-              <span className="hidden sm:inline">บันทึก</span>
-            </button>
-          )}
-          <button
-            onClick={() => setShowLogDrawer(!showLogDrawer)}
-            title="ดูประวัติการเล่น"
-            className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-white/10 hover:border-white/20 transition-all shadow-sm active:scale-95 flex items-center gap-1"
-          >
-            <span>📜</span>
-            <span className="hidden sm:inline">ประวัติ</span>
+            <span className="hidden sm:inline">กติกา</span>
           </button>
           <button
             onClick={onResetGame}
             title="ออกจากเกม"
-            className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-700/60 text-rose-300 hover:text-rose-200 text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95"
+            className="px-2.5 py-1 bg-rose-950/70 hover:bg-rose-900 text-rose-300 text-xs font-semibold rounded-lg border border-rose-800/60 transition-colors cursor-pointer"
           >
-            ออก / เกมใหม่
+            ออกจากเกม
           </button>
         </div>
       </header>
 
       {/* Warning Toast */}
-      {warningMsg && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 bg-rose-950/95 border border-rose-500/80 rounded-2xl shadow-2xl text-rose-200 text-xs sm:text-sm font-bold animate-in fade-in slide-in-from-top-4 duration-150 flex items-center gap-2 backdrop-blur-md">
-          <span>{warningMsg}</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {warningMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="fixed bottom-28 sm:bottom-32 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 bg-rose-950/95 border border-rose-500/80 rounded-full shadow-2xl text-rose-200 text-xs font-bold flex items-center gap-1.5 backdrop-blur-md pointer-events-none"
+          >
+            <span>{warningMsg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ================= MIDDLE GAME TABLE ================= */}
-      <main className="relative z-10 flex-1 flex flex-col justify-between p-2 sm:p-4 max-w-7xl mx-auto w-full">
-        {/* ================= OPPONENTS ORBIT (CARDS ARE HIDDEN / BACK FACING) ================= */}
-        <div className="w-full flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 py-1">
+      {/* ================= MIDDLE GAME ARENA ================= */}
+      <main className="relative z-10 flex-1 flex flex-col justify-between px-2 sm:px-6 py-2 max-w-6xl mx-auto w-full overflow-hidden">
+        {/* OPPONENTS TRAY (COMPACT & SLEEK) */}
+        <div className="w-full flex items-center justify-center gap-2 sm:gap-3 overflow-x-auto py-1 scrollbar-none flex-shrink-0">
           {players.map((p, idx) => {
             const isTurn = idx === currentPlayerIndex;
             const isMe = p.id === localPlayer?.id;
             const hasOneCard = p.hand.length === 1;
 
             return (
-              <div
+              <motion.div
                 key={p.id}
-                className={`relative px-3.5 py-2 rounded-2xl border transition-all duration-300 ${
+                animate={isTurn ? { scale: 1.05 } : { scale: 1 }}
+                className={`relative px-2.5 sm:px-3 py-1.5 rounded-2xl border transition-all flex items-center gap-2 ${
                   isTurn
-                    ? 'border-cyan-400/90 bg-cyan-950/60 shadow-xl shadow-cyan-500/30 ring-2 ring-cyan-400/50 scale-105 backdrop-blur-md'
+                    ? 'border-cyan-400 bg-cyan-950/70 shadow-lg shadow-cyan-500/25 ring-1 ring-cyan-400'
                     : isMe
                     ? 'border-indigo-400/40 bg-indigo-950/30'
-                    : 'glass-panel-subtle border-white/10'
-                } flex items-center gap-3 min-w-[140px] sm:min-w-[170px]`}
+                    : 'border-white/10 bg-slate-900/60'
+                }`}
               >
-                {/* Letter Avatar */}
+                {/* Player Letter Avatar */}
                 <div
-                  className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl font-black font-mono flex items-center justify-center text-xs sm:text-sm shadow-md flex-shrink-0 ${
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl font-black font-mono flex items-center justify-center text-xs shadow-sm flex-shrink-0 ${
                     isTurn
-                      ? 'bg-cyan-500 text-slate-950 ring-2 ring-cyan-300 shadow-cyan-500/50'
+                      ? 'bg-cyan-500 text-slate-950 font-black'
                       : isMe
-                      ? 'bg-indigo-500 text-white shadow-indigo-600/50'
+                      ? 'bg-indigo-600 text-white'
                       : 'bg-slate-800 text-slate-300'
                   }`}
                 >
                   {p.letter}
                 </div>
 
-                {/* Player Details & Hidden Card Indicator */}
-                <div className="flex-1 overflow-hidden text-left">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-xs sm:text-sm text-slate-200 truncate">
+                <div className="text-left leading-tight">
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-xs text-slate-200 max-w-[80px] sm:max-w-[110px] truncate">
                       {p.name}
                     </span>
                     {isMe && (
-                      <span className="text-[9px] px-1.5 py-0.2 bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 rounded font-mono font-bold">
+                      <span className="text-[9px] px-1 bg-cyan-500/20 text-cyan-300 rounded font-bold">
                         คุณ
                       </span>
                     )}
-                    {p.isBot && (
-                      <span className="text-[9px] px-1.5 py-0.2 bg-purple-950/80 border border-purple-500/40 text-purple-300 rounded font-mono font-semibold">
-                        BOT
-                      </span>
-                    )}
                   </div>
-
-                  {/* Opponent Card Back Visual */}
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex items-center gap-1">
-                      {/* Miniature Card Back Icon */}
-                      <div className="w-4 h-5.5 rounded bg-gradient-to-br from-slate-800 to-indigo-950 border border-slate-600 flex items-center justify-center shadow-xs">
-                        <span className="text-[8px] text-cyan-400">∿</span>
-                      </div>
-                      <span className="font-mono font-bold text-xs text-indigo-300">
-                        {p.hand.length} ใบ
-                      </span>
-                    </div>
-
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[11px] font-mono font-bold text-indigo-300">
+                      🎴 {p.hand.length}
+                    </span>
                     {hasOneCard && (
-                      <span className="text-[10px] font-black text-amber-400 animate-pulse drop-shadow">
-                        {p.calledHarmonic ? 'HARMONIC!' : 'เหลือ 1 ใบ!'}
+                      <span className="text-[10px] font-black text-amber-400 animate-pulse">
+                        {p.calledHarmonic ? 'HARMONIC!' : '1 ใบ!'}
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Active Indicator Pulse */}
                 {isTurn && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-cyan-400 animate-ping shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
                 )}
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
-        {/* ================= CENTER TABLE DECK & DISCARD PILE ================= */}
-        <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-14 my-2 sm:my-4">
-          {/* Turn & Direction Status Badge */}
-          <div className="flex flex-col items-center text-center order-1 sm:order-none glass-panel-subtle px-5 py-4 rounded-3xl border border-white/10 shadow-xl min-w-[240px]">
-            <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase font-semibold">
-              สถานะเทิร์นปัจจุบัน
-            </span>
-            <div className="text-base sm:text-lg font-black text-cyan-300 flex items-center gap-2 mt-1 drop-shadow-sm">
-              <span>Player {currentPlayer?.letter}</span>
-              <span className="text-slate-300 font-bold">({currentPlayer?.name})</span>
-            </div>
-
-            {/* Turn Announcement banner */}
-            <div className="mt-1 text-xs">
-              {isMyTurn ? (
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold animate-pulse">
-                  🎯 ถึงตาของคุณแล้ว! เลือกลงไพ่หรือกดจั่ว
+        {/* CENTER TABLE: DRAW PILE, DISCARD PILE & SLIM STATUS */}
+        <div className="flex-1 flex flex-col items-center justify-center py-2 sm:py-4 gap-3 sm:gap-4">
+          {/* SLIM TURN & COLOR STATUS PILL */}
+          <div className="flex items-center gap-2 sm:gap-3 px-4 py-1.5 rounded-full bg-slate-900/90 border border-white/10 shadow-lg text-xs backdrop-blur-md">
+            {isMyTurn ? (
+              <span className="font-black text-emerald-400 flex items-center gap-1.5 animate-pulse">
+                <span>🎯 ถึงตาคุณแล้ว!</span>
+                <span className="hidden sm:inline font-normal text-slate-300">
+                  (เลือกลงไพ่หรือจั่ว)
                 </span>
-              ) : (
-                <span className="text-slate-400 text-[11px] font-medium">
-                  {currentPlayer?.isBot ? '🤖 บอทกำลังคิดคำนวณสูตร...' : '⏳ กำลังรอผู้เล่นลงไพ่...'}
-                </span>
-              )}
-            </div>
-
-            {/* Direction Indicator */}
-            <div className="mt-2.5 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-white/10 text-xs font-mono text-slate-300 shadow-inner">
-              <span
-                className={`text-cyan-400 font-black inline-block transition-transform duration-500 text-sm ${
-                  direction === 1 ? 'rotate-0' : 'scale-x-[-1]'
-                }`}
-              >
-                ↻
               </span>
-              <span className="font-semibold">{direction === 1 ? 'ตามเข็มนาฬิกา ↻' : 'ทวนเข็มนาฬิกา ↺'}</span>
-            </div>
-
-            {/* Harmonic Action Buttons */}
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                onClick={() => {
-                  if (localPlayer) onCallHarmonic(localPlayer.id);
-                }}
-                className={`px-5 py-2.5 rounded-2xl font-black text-xs tracking-wider uppercase transition-all shadow-xl ${
-                  localPlayer?.hand.length <= 2
-                    ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 hover:from-amber-400 hover:to-rose-400 text-white animate-pulse hover:scale-105 shadow-amber-500/40 ring-2 ring-amber-400/40'
-                    : 'bg-slate-800/80 text-slate-500 border border-white/10 hover:text-slate-400'
-                }`}
-              >
-                ∿ ประกาศ HARMONIC!
-              </button>
-            </div>
-          </div>
-
-          {/* Cards Table Arena */}
-          <div className="flex items-center gap-8 sm:gap-12">
-            {/* DRAW PILE */}
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                กองไพ่จั่ว (DRAW)
-              </span>
-              <div
-                onClick={() => {
-                  if (isMyTurn) onDrawCard();
-                  else triggerWarning('⏳ ยังไม่ถึงตาของคุณ ไม่สามารถจั่วได้');
-                }}
-                className={`group relative transition-transform ${
-                  isMyTurn ? 'cursor-pointer hover:scale-105 active:scale-95' : 'opacity-75'
-                }`}
-              >
-                <CardView isBack={true} size="md" countBadge={deck.length} />
-                <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-slate-900/95 border border-indigo-400/60 rounded-full text-[10px] font-mono font-bold text-indigo-200 shadow-xl whitespace-nowrap backdrop-blur-md">
-                  {isMyTurn ? '👉 กดเพื่อจั่วไพ่' : 'กองไพ่จั่ว'}
-                </div>
-              </div>
-            </div>
-
-            {/* DISCARD PILE */}
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                กองไพ่ทิ้ง (DISCARD)
-              </span>
-              <div className="relative">
-                <CardView card={topCard} size="md" />
-
-                {/* Active Color Indicator when Wild is played */}
-                {topCard?.type === 'WILD' && (
-                  <div
-                    className={`absolute -top-3 -right-3 px-3 py-1 rounded-full text-[10px] font-black uppercase text-white shadow-xl border-2 border-white/90 animate-bounce ${getColorBg(
-                      currentColor
-                    )}`}
-                  >
-                    สีปัจจุบัน: {currentColor}
-                  </div>
+            ) : (
+              <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                <span>ตาของ {currentPlayer?.name}</span>
+                {currentPlayer?.isBot && (
+                  <span className="text-cyan-400 text-[11px]">🤖 คิดคำนวณ...</span>
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
+              </span>
+            )}
 
-        {/* ================= BOTTOM: LOCAL PLAYER'S HAND (FACE-UP) ================= */}
-        <div className="w-full glass-panel border border-white/10 rounded-3xl p-3.5 sm:p-5 shadow-2xl">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center gap-2.5">
-              <span className="w-7 h-7 rounded-xl bg-indigo-600 text-white font-mono font-black flex items-center justify-center text-xs shadow-md shadow-indigo-600/30">
-                {localPlayer?.letter}
-              </span>
-              <span className="font-extrabold text-sm sm:text-base text-white tracking-wide">
-                ไพ่ในมือของคุณ ({localPlayer?.name})
-              </span>
-              <span className="text-xs text-indigo-300 font-mono font-bold">
-                ({localPlayer?.hand.length} ใบ)
-              </span>
-            </div>
+            <div className="w-[1px] h-3 bg-white/20" />
 
             {/* Current Color Indicator */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400 font-mono font-semibold">สีที่ต้องลง:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 text-[11px]">สีนำ:</span>
               <span
-                className={`px-3 py-1 rounded-full font-black text-[11px] text-white uppercase shadow-md border border-white/30 ${getColorBg(
+                className={`px-2 py-0.5 rounded-md font-mono font-black text-[10px] uppercase text-white shadow-sm ${getColorBg(
                   currentColor
                 )}`}
               >
                 {currentColor}
               </span>
             </div>
+
+            <div className="w-[1px] h-3 bg-white/20" />
+
+            {/* Direction */}
+            <span className="text-slate-400 font-mono text-[11px]">
+              {direction === 1 ? '↻ ตามเข็ม' : '↺ ทวนเข็ม'}
+            </span>
           </div>
 
-          {/* Hand Cards List - Only Local Player's Cards are visible! */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 overflow-x-auto pb-2.5 pt-3.5 px-1 scrollbar-thin scrollbar-thumb-slate-700">
+          {/* TABLE CARDS ARENA */}
+          <div className="flex items-center justify-center gap-6 sm:gap-12">
+            {/* DRAW PILE */}
+            <div className="flex flex-col items-center gap-1.5">
+              <motion.div
+                whileHover={isMyTurn ? { scale: 1.05, y: -4 } : {}}
+                whileTap={isMyTurn ? { scale: 0.95 } : {}}
+                onClick={() => {
+                  if (isMyTurn) onDrawCard();
+                  else triggerWarning('⏳ ยังไม่ถึงตาของคุณ ไม่สามารถจั่วได้');
+                }}
+                className={`relative transition-all cursor-pointer ${
+                  !isMyTurn ? 'opacity-70' : 'hover:drop-shadow-[0_0_15px_rgba(99,102,241,0.4)]'
+                }`}
+              >
+                <CardView isBack={true} size="md" countBadge={deck.length} />
+              </motion.div>
+              <span className="text-[11px] font-mono text-slate-400">
+                {isMyTurn ? '👉 กดเพื่อจั่ว' : 'กองจั่ว'}
+              </span>
+            </div>
+
+            {/* DISCARD PILE WITH REALISTIC ENTRY ANIMATION */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="relative">
+                <AnimatePresence mode="popLayout">
+                  <motion.div
+                    key={topCard?.id || 'discard-top'}
+                    initial={{ scale: 0.75, opacity: 0, rotate: -8 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                  >
+                    <CardView card={topCard} size="md" />
+                  </motion.div>
+                </AnimatePresence>
+
+                {topCard?.type === 'WILD' && (
+                  <div
+                    className={`absolute -top-2.5 -right-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase text-white shadow-lg border border-white/50 ${getColorBg(
+                      currentColor
+                    )}`}
+                  >
+                    {currentColor}
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] font-mono text-slate-400">กองทิ้ง</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= BOTTOM: LOCAL PLAYER'S HAND ================= */}
+        <div className="w-full glass-panel border border-white/10 rounded-3xl p-2.5 sm:p-4 shadow-xl flex-shrink-0">
+          {/* Hand Header & Harmonic Button */}
+          <div className="flex items-center justify-between mb-1.5 px-1">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-mono font-black flex items-center justify-center text-xs shadow-sm">
+                {localPlayer?.letter}
+              </span>
+              <span className="font-extrabold text-xs sm:text-sm text-white">
+                ไพ่ในมือของคุณ ({localPlayer?.hand.length} ใบ)
+              </span>
+            </div>
+
+            {/* HARMONIC CALL BUTTON */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (localPlayer) onCallHarmonic(localPlayer.id);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl font-black text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer ${
+                localPlayer?.hand.length <= 2
+                  ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-white animate-pulse shadow-amber-500/30 border border-amber-300'
+                  : 'bg-slate-800/80 text-slate-500 border border-white/10 hover:text-slate-400'
+              }`}
+            >
+              ∿ HARMONIC!
+            </motion.button>
+          </div>
+
+          {/* Cards Scrollable Row */}
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-1.5 pt-2 px-1 scrollbar-thin scrollbar-thumb-slate-700">
             {localPlayer?.hand.map((card) => {
               const isPlayable = isMyTurn && canPlayCard(card, topCard, currentColor);
               return (
-                <div key={card.id} className="flex-shrink-0">
+                <motion.div
+                  key={card.id}
+                  whileHover={isPlayable ? { y: -8, scale: 1.04 } : {}}
+                  whileTap={isPlayable ? { scale: 0.96 } : {}}
+                  transition={{ duration: 0.15 }}
+                  className={`flex-shrink-0 ${
+                    !isPlayable && isMyTurn ? 'opacity-65' : ''
+                  }`}
+                >
                   <CardView
                     card={card}
                     size="md"
                     isPlayable={isPlayable}
                     onClick={() => handleCardClick(card)}
                   />
-                </div>
+                </motion.div>
               );
             })}
           </div>
-
-          {/* Helper hint for user */}
-          {!isMyTurn && (
-            <div className="mt-2 text-center text-xs text-slate-400 font-medium">
-              ขณะนี้เป็นตาของผู้เล่นอื่น ไพ่ของคุณจะเปิดให้คลิกลงได้เมื่อถึงตาของคุณ
-            </div>
-          )}
         </div>
       </main>
 
-      {/* Floating Quick-Help Rules Button */}
-      <div className="fixed bottom-24 right-4 sm:right-6 z-30">
-        <button
-          onClick={onOpenHowToPlay}
-          className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs rounded-full shadow-2xl border border-cyan-300/60 flex items-center gap-2 transition-transform hover:scale-105 active:scale-95"
-        >
-          <span>💡</span>
-          <span>เปิดดูวิธีเล่น & สูตรฟิสิกส์</span>
-        </button>
-      </div>
-
       {/* ================= DRAWN CARD CHOICE MODAL ================= */}
-      {drawnCardChoice && drawnCardChoice.playerId === localPlayer?.id && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-sm glass-panel-elevated rounded-3xl p-6 text-center space-y-4 border border-white/15">
-            <div className="text-xs font-mono font-bold text-cyan-400 tracking-wider uppercase">
-              🎴 คุณเพิ่งจั่วได้ไพ่ใบนี้
-            </div>
-            <div className="flex justify-center py-2">
-              <CardView card={drawnCardChoice.card} size="lg" />
-            </div>
+      <AnimatePresence>
+        {drawnCardChoice && drawnCardChoice.playerId === localPlayer?.id && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 15 }}
+              className="w-full max-w-xs glass-panel-elevated rounded-3xl p-5 text-center space-y-3.5 border border-white/15 shadow-2xl"
+            >
+              <div className="text-xs font-mono font-bold text-cyan-400 tracking-wider uppercase">
+                🎴 คุณจั่วได้ไพ่ใบนี้
+              </div>
+              <div className="flex justify-center py-1">
+                <CardView card={drawnCardChoice.card} size="lg" />
+              </div>
 
-            <div className="space-y-2 pt-2">
-              {canPlayCard(drawnCardChoice.card, topCard, currentColor) ? (
-                <>
-                  <p className="text-xs text-emerald-300 font-bold">
-                    ไพ่ใบนี้สามารถลงได้ทันที! ต้องการลงเลยหรือไม่?
-                  </p>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      onClick={() => onPlayDrawnCardChoice(true)}
-                      className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-950/40 transition-transform hover:scale-105"
-                    >
-                      ลงไพ่ใบนี้เลย 🚀
-                    </button>
+              <div className="space-y-2 pt-1">
+                {canPlayCard(drawnCardChoice.card, topCard, currentColor) ? (
+                  <>
+                    <p className="text-xs text-emerald-300 font-bold">
+                      ไพ่ใบนี้ลงต่อได้ทันที! ต้องการลงเลยหรือไม่?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => onPlayDrawnCardChoice(true)}
+                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-md cursor-pointer transition-transform hover:scale-105"
+                      >
+                        ลงทันที
+                      </button>
+                      <button
+                        onClick={() => onPlayDrawnCardChoice(false)}
+                        className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-white/10 cursor-pointer"
+                      >
+                        เก็บเข้ามือ
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-slate-400">
+                      ไพ่ใบนี้ยังลงไม่ได้ในตานี้ เก็บเข้ามือและจบตา
+                    </p>
                     <button
                       onClick={() => onPlayDrawnCardChoice(false)}
-                      className="py-2.5 px-4 bg-slate-800/90 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-white/10"
+                      className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-white/10 cursor-pointer"
                     >
-                      เก็บไว้ & จบตา ✋
+                      รับทราบและจบตา
                     </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs text-slate-400">
-                    ไพ่ใบนี้ไม่สามารถลงในเทิร์นนี้ได้ จะถูกเก็บเข้าสู่มือของคุณ
-                  </p>
-                  <button
-                    onClick={() => onPlayDrawnCardChoice(false)}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-950/40"
-                  >
-                    เก็บเข้ามือ & จบตา
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= GAME LOG DRAWER ================= */}
-      {showLogDrawer && (
-        <div className="fixed inset-y-0 right-0 z-40 w-full sm:w-80 glass-panel-elevated border-l border-white/10 p-5 flex flex-col animate-in slide-in-from-right duration-200">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
-            <div className="flex items-center gap-2">
-              <span>📜</span>
-              <h3 className="font-bold text-sm text-white tracking-wide">ประวัติการเล่น (GAME LOG)</h3>
-            </div>
-            <button
-              onClick={() => setShowLogDrawer(false)}
-              className="text-slate-400 hover:text-white font-bold text-sm w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs font-mono">
-            {logs.length === 0 ? (
-              <div className="text-slate-500 text-center py-8">ยังไม่มีประวัติการเล่น</div>
-            ) : (
-              logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-2.5 rounded-xl bg-slate-950/70 border border-white/5 space-y-1 shadow-inner"
-                >
-                  <div className="text-[10px] text-slate-500 font-semibold">{log.time}</div>
-                  <div className="text-slate-200 leading-snug">{log.text}</div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

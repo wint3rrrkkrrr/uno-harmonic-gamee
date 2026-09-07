@@ -34,15 +34,50 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 }) => {
   const [answerInput, setAnswerInput] = useState('');
   const [selectedDiscardCardId, setSelectedDiscardCardId] = useState<string | null>(null);
+  const [isTimedOut, setIsTimedOut] = useState(false);
+
+  const { equation, currentBlankIndex, allFilled, claimedByPlayerId, disqualifiedPlayerIds, resultState } = state;
+
+  // Countdown timer based on difficulty: 10s (EASY), 20s (MEDIUM), 30s (HARD)
+  const maxTime = equation.difficulty === 'EASY' ? 10 : equation.difficulty === 'MEDIUM' ? 20 : 30;
+  const [timeLeft, setTimeLeft] = useState<number>(maxTime);
 
   useEffect(() => {
     setAnswerInput('');
     setSelectedDiscardCardId(null);
   }, [state.equation.id, state.claimedByPlayerId]);
 
-  if (!isOpen) return null;
+  // Reset timer when equation changes or when allFilled triggers
+  useEffect(() => {
+    if (allFilled && !claimedByPlayerId && !resultState) {
+      setTimeLeft(maxTime);
+      setIsTimedOut(false);
+    }
+  }, [allFilled, state.equation.id]);
 
-  const { equation, currentBlankIndex, allFilled, claimedByPlayerId, disqualifiedPlayerIds, resultState } = state;
+  // Countdown interval when waiting for someone to buzz in
+  useEffect(() => {
+    if (!allFilled || claimedByPlayerId || resultState || isTimedOut) return;
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsTimedOut(true);
+          // Auto close/discard equation after timeout
+          setTimeout(() => {
+            onCloseEquation();
+          }, 1800);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [allFilled, claimedByPlayerId, resultState, isTimedOut, onCloseEquation]);
+
+  if (!isOpen) return null;
   const currentBlank = equation.blanks[currentBlankIndex];
 
   // Assigned player for the active blank
@@ -286,16 +321,55 @@ export const EquationModal: React.FC<EquationModalProps> = ({
           {/* PHASE 2: ALL BLANKS FILLED -> BUZZER / ANSWERING */}
           {allFilled && !resultState && (
             <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-br from-indigo-950/80 to-slate-900 border-2 border-indigo-400/80 text-center space-y-4 shadow-2xl backdrop-blur-md">
-              <div className="text-xs font-mono font-bold text-emerald-400 tracking-widest uppercase">
-                ✓ ช่องว่างทั้งหมดถูกเติมเรียบร้อยแล้ว! (ALL BLANKS FILLED)
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold text-emerald-400 tracking-widest uppercase">
+                  ✓ ช่องว่างทั้งหมดถูกเติมแล้ว!
+                </span>
+                {/* Countdown Timer Display */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-slate-300">
+                    ความยาก {equation.difficulty} ({maxTime}s)
+                  </span>
+                  <span
+                    className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-full border ${
+                      timeLeft <= 5
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-ping'
+                        : timeLeft <= 10
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                        : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50'
+                    }`}
+                  >
+                    ⏱️ {timeLeft}s
+                  </span>
+                </div>
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white">
-                ใครรู้คำตอบ แย่งกันกดปุ่มเพื่อตอบโจทย์!
-              </h3>
 
-              {!claimedByPlayerId ? (
-                /* Buzzer Buttons */
-                <div className="space-y-3">
+              {/* Countdown Progress Bar */}
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 ${
+                    timeLeft <= 5 ? 'bg-rose-500' : timeLeft <= 10 ? 'bg-amber-400' : 'bg-cyan-400'
+                  }`}
+                  style={{ width: `${(timeLeft / maxTime) * 100}%` }}
+                />
+              </div>
+
+              {isTimedOut ? (
+                <div className="p-4 rounded-2xl bg-rose-950/80 border border-rose-500/70 text-rose-200 space-y-1 animate-pulse">
+                  <div className="text-lg font-black">⏱️ หมดเวลาตอบโจทย์ SHM!</div>
+                  <div className="text-xs text-rose-300">
+                    ไม่มีผู้เล่นตอบได้ทันเวลา กำลังทิ้งการ์ดโจทย์ใบนี้และเล่นต่อตามปกติ...
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-xl sm:text-2xl font-black text-white">
+                    ใครรู้คำตอบ แย่งกันกดปุ่มเพื่อตอบโจทย์!
+                  </h3>
+
+                  {!claimedByPlayerId ? (
+                    /* Buzzer Buttons */
+                    <div className="space-y-3">
                   {localPlayerId ? (
                     /* Online Multiplayer: Buzz directly for local player */
                     <button
@@ -424,8 +498,10 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                   </p>
                 </div>
               )}
-            </div>
+            </>
           )}
+        </div>
+      )}
 
           {/* PHASE 3: RESULT DISPLAY */}
           {resultState && (

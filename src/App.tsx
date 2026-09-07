@@ -70,11 +70,12 @@ export default function App() {
   const [onlineError, setOnlineError] = useState<string | null>(null);
   const supabaseUnsubRef = useRef<(() => void) | null>(null);
 
-  // Check saved game on mount
+  // Check saved game on mount: auto-resume if game was actively running
   useEffect(() => {
     const saved = loadSavedGameState();
-    if (saved && saved.gamePhase !== 'GAME_OVER') {
-      setHasSavedGame(true);
+    if (saved && saved.gamePhase !== 'GAME_OVER' && saved.gamePhase !== 'MENU') {
+      setGameState(saved);
+      showToast('🔄 กู้คืนเกมที่เล่นอยู่เรียบร้อยแล้ว');
     }
   }, []);
 
@@ -1304,13 +1305,10 @@ export default function App() {
       {/* Screen 1: Start Screen */}
       {!gameState || gameState.gamePhase === 'MENU' ? (
         <StartScreen
-          hasSavedGame={hasSavedGame}
-          onContinueGame={handleContinueGame}
           onStartNewGame={handleStartNewGame}
           onOpenOnlineLobby={() => {
             setShowOnlineLobby(true);
           }}
-          onOpenSupabaseConfig={() => setShowSupabaseConfig(true)}
           onOpenHowToPlay={() => setShowHowToPlay(true)}
           onOpenAbout={() => setShowAbout(true)}
         />
@@ -1328,7 +1326,6 @@ export default function App() {
           onOpenHowToPlay={() => setShowHowToPlay(true)}
           onSaveGame={() => {
             saveGameState(gameState);
-            showToast('💾 บันทึกสถานะเกมลงในเครื่องเรียบร้อยแล้ว!');
           }}
           onResetGame={handleResetGame}
         />

@@ -167,21 +167,6 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
                   🔑 เข้าร่วมห้องทันที
                 </button>
               )}
-
-              {onOpenSupabaseConfig && (
-                <button
-                  type="button"
-                  onClick={onOpenSupabaseConfig}
-                  className="w-full py-2 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-slate-400 hover:text-white text-xs flex items-center justify-center gap-2 transition-colors"
-                >
-                  <span className="text-amber-400">⚡</span>
-                  <span>
-                    {isSupabaseReady
-                      ? 'Backend: Supabase เชื่อมต่ออยู่ (ดูการตั้งค่า)'
-                      : 'คลิกเพื่อตั้งค่า Supabase URL & Key'}
-                  </span>
-                </button>
-              )}
             </div>
           </div>
         ) : (
