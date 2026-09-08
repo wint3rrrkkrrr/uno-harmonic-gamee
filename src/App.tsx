@@ -156,7 +156,28 @@ export default function App() {
 
     // 2. Update Game State if record has state and version is >= current
     if (record.state) {
-      const incomingState = record.state;
+      let incomingState = record.state;
+
+      // Rehydrate calculateAnswer function from EQUATION_CARDS_DATA if missing
+      if (incomingState.currentEquationState?.equation) {
+        const masterEq = EQUATION_CARDS_DATA.find(
+          (e) => e.id === incomingState.currentEquationState!.equation.id
+        );
+        if (masterEq) {
+          incomingState = {
+            ...incomingState,
+            currentEquationState: {
+              ...incomingState.currentEquationState,
+              equation: {
+                ...masterEq,
+                ...incomingState.currentEquationState.equation,
+                calculateAnswer: masterEq.calculateAnswer,
+              },
+            },
+          };
+        }
+      }
+
       setGameState((prevState) => {
         const prevVersion = prevState?.version ?? 0;
         const incomingVersion = incomingState.version ?? record.version ?? 0;
@@ -1246,7 +1267,20 @@ export default function App() {
       inputs[b.variable] = b.filledValue ?? 1;
     }
 
-    const sol = eq.calculateAnswer(inputs);
+    const masterEq = EQUATION_CARDS_DATA.find((e) => e.id === eq.id) || eq;
+    let sol;
+    if (typeof masterEq.calculateAnswer === 'function') {
+      sol = masterEq.calculateAnswer(inputs);
+    } else {
+      const val = inputs[eq.targetVariable] ?? 0;
+      sol = {
+        numericValue: val,
+        acceptableAnswers: [String(val)],
+        displayAnswer: `${eq.targetVariable} = ${val} ${eq.targetUnit}`,
+        explanationSteps: [`แทนค่าตัวแปรในสมการ ${eq.formula}`],
+      };
+    }
+
     const isCorrect = checkAnswerMath(answerText, sol.acceptableAnswers, sol.numericValue);
 
     let updatedPlayers = [...gameState.players];
@@ -1291,7 +1325,7 @@ export default function App() {
       logs: [
         createLog(
           isCorrect
-            ? `✅ ถูกต้อง! Player ${player.letter} ตอบถูก (${answerText} ${sol.unit}) ได้สิทธิ์ทิ้งไพ่ฟรี 1 ใบ!`
+            ? `✅ ถูกต้อง! Player ${player.letter} ตอบถูก (${answerText} ${eq.targetUnit}) ได้สิทธิ์ทิ้งไพ่ฟรี 1 ใบ!`
             : `❌ ตอบผิด! Player ${player.letter} ตอบ (${answerText}) ถูกปรับจั่ว 1 ใบ และหมดสิทธิ์ตอบข้อนี้`,
           isCorrect ? 'win' : 'penalty'
         ),
@@ -1574,10 +1608,13 @@ export default function App() {
             for (const b of latestEq.equation.blanks) {
               inputs[b.variable] = b.filledValue ?? 1;
             }
-            const sol = latestEq.equation.calculateAnswer(inputs);
-            // 85% chance bot gets it right, 15% chance bot makes a mistake
-            const isSmart = Math.random() < 0.85;
-            const botAns = isSmart ? String(sol.numericValue) : '99';
+            const masterEq = EQUATION_CARDS_DATA.find((e) => e.id === latestEq.equation.id) || latestEq.equation;
+            let botAns = '99';
+            if (typeof masterEq.calculateAnswer === 'function') {
+              const sol = masterEq.calculateAnswer(inputs);
+              const isSmart = Math.random() < 0.85;
+              botAns = isSmart ? String(sol.numericValue) : '99';
+            }
             handleSubmitAnswer(claimant.id, botAns);
           }
         }, 2200);

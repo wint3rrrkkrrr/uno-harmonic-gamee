@@ -298,7 +298,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   currentColor
                 )}`}
               >
-                {currentColor}
+                {currentColor === 'RED'
+                  ? 'แดง (A — แอมพลิจูด)'
+                  : currentColor === 'BLUE'
+                  ? 'น้ำเงิน (ω — ความถี่เชิงมุม)'
+                  : currentColor === 'GREEN'
+                  ? 'เขียว (k — ค่าคงที่สปริง)'
+                  : currentColor === 'YELLOW'
+                  ? 'เหลือง (m — มวล)'
+                  : currentColor}
               </span>
             </div>
 
@@ -416,6 +424,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               <Sparkles className="w-3.5 h-3.5" />
               <span>∿ HARMONIC!</span>
             </motion.button>
+          </div>
+
+          {/* Quick Color Variable Reference Bar */}
+          <div className="flex items-center justify-between overflow-x-auto gap-1.5 py-1 px-1 mb-1 text-[10px] sm:text-[11px] font-mono scrollbar-none">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+              <span className="px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/50 text-rose-200 whitespace-nowrap shadow-sm">
+                🔴 แดง = Amplitude (A) — แอมพลิจูด
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/50 text-cyan-200 whitespace-nowrap shadow-sm">
+                🔵 น้ำเงิน = Angular Frequency (ω) — ความถี่เชิงมุม
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 whitespace-nowrap shadow-sm">
+                🟢 เขียว = Spring Constant (k) — ค่าคงที่สปริง
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-200 whitespace-nowrap shadow-sm">
+                🟡 เหลือง = Mass (m) — มวล
+              </span>
+            </div>
           </div>
 
           {/* Cards Horizontal Carousel */}

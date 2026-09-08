@@ -95,7 +95,10 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-rose-500 via-rose-600 to-rose-950',
           border: 'border-rose-300/90 shadow-rose-950/80',
           glow: 'card-glow-red',
-          badgeText: 'A (แอมพลิจูด)',
+          badgeText: 'Amplitude (A) — แอมพลิจูด',
+          variableSymbol: 'A',
+          variableName: 'แอมพลิจูด',
+          variableFull: 'Amplitude (A)',
           cornerBadge: 'bg-rose-950/80 text-rose-200',
           accent: 'text-rose-100',
         };
@@ -104,7 +107,10 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-cyan-400 via-sky-600 to-blue-950',
           border: 'border-cyan-200/90 shadow-cyan-950/80',
           glow: 'card-glow-blue',
-          badgeText: 'ω/f (ความถี่)',
+          badgeText: 'Angular Frequency (ω) — ความถี่เชิงมุม',
+          variableSymbol: 'ω',
+          variableName: 'ความถี่เชิงมุม',
+          variableFull: 'Angular Frequency (ω)',
           cornerBadge: 'bg-sky-950/80 text-cyan-200',
           accent: 'text-cyan-100',
         };
@@ -113,7 +119,10 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-emerald-400 via-emerald-600 to-teal-950',
           border: 'border-emerald-200/90 shadow-emerald-950/80',
           glow: 'card-glow-green',
-          badgeText: 'k/E (สปริง/พลังงาน)',
+          badgeText: 'Spring Constant (k) — ค่าคงที่สปริง',
+          variableSymbol: 'k',
+          variableName: 'ค่าคงที่สปริง',
+          variableFull: 'Spring Constant (k)',
           cornerBadge: 'bg-emerald-950/80 text-emerald-200',
           accent: 'text-emerald-100',
         };
@@ -122,7 +131,10 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-amber-300 via-amber-500 to-amber-900',
           border: 'border-amber-100/95 shadow-amber-950/80',
           glow: 'card-glow-yellow',
-          badgeText: 'm/T (มวล/คาบ)',
+          badgeText: 'Mass (m) — มวล',
+          variableSymbol: 'm',
+          variableName: 'มวล',
+          variableFull: 'Mass (m)',
           cornerBadge: 'bg-amber-950/80 text-amber-200',
           accent: 'text-amber-50',
         };
@@ -132,7 +144,10 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950',
           border: 'border-fuchsia-400/90 shadow-purple-950/90',
           glow: 'card-glow-wild',
-          badgeText: 'QUANTUM WILD',
+          badgeText: 'เปลี่ยนสี (WILD)',
+          variableSymbol: '★',
+          variableName: 'เปลี่ยนสี',
+          variableFull: 'Wild Color',
           cornerBadge: 'bg-purple-950/80 text-fuchsia-200',
           accent: 'text-fuchsia-100',
         };
@@ -146,13 +161,16 @@ export const CardView: React.FC<CardViewProps> = ({
     switch (card.type) {
       case 'NUMBER':
         return (
-          <div className="flex flex-col items-center justify-center my-auto">
+          <div className="flex flex-col items-center justify-center my-auto text-center px-1">
             <span className="font-black text-3xl sm:text-5xl text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] tracking-tight leading-none">
               {card.value}
             </span>
-            <div className="h-0.5 w-6 sm:w-8 bg-white/40 rounded-full mt-1.5 mb-1" />
-            <span className="text-[8px] sm:text-[9px] text-white/90 font-mono tracking-wider">
-              {scheme.badgeText}
+            <div className="h-0.5 w-6 sm:w-8 bg-white/50 rounded-full mt-1.5 mb-1" />
+            <span className="text-[8px] sm:text-[9.5px] font-black text-white drop-shadow tracking-tight leading-tight">
+              {scheme.variableFull}
+            </span>
+            <span className="text-[7.5px] sm:text-[8.5px] text-white/90 font-bold leading-tight">
+              {scheme.variableName}
             </span>
           </div>
         );
@@ -168,7 +186,7 @@ export const CardView: React.FC<CardViewProps> = ({
             <span className="text-[9px] sm:text-[11px] font-black tracking-tight text-white uppercase mt-1 leading-tight drop-shadow">
               จั่ว 2 ใบ
             </span>
-            <span className="text-[7px] text-white/80 font-mono tracking-wider">ENERGY DAMP</span>
+            <span className="text-[7px] sm:text-[8px] text-white/90 font-bold tracking-wider">(+2 ไพ่)</span>
           </div>
         );
       case 'SKIP':
@@ -178,7 +196,7 @@ export const CardView: React.FC<CardViewProps> = ({
             <span className="text-[9px] sm:text-[11px] font-black tracking-tight text-white uppercase mt-1 leading-tight drop-shadow">
               ข้ามตาเล่น
             </span>
-            <span className="text-[7px] text-white/80 font-mono tracking-wider">ZERO VELOCITY</span>
+            <span className="text-[7px] sm:text-[8px] text-white/90 font-bold tracking-wider">(SKIP)</span>
           </div>
         );
       case 'REVERSE':
@@ -188,7 +206,7 @@ export const CardView: React.FC<CardViewProps> = ({
             <span className="text-[9px] sm:text-[11px] font-black tracking-tight text-white uppercase mt-1 leading-tight drop-shadow">
               กลับทิศทาง
             </span>
-            <span className="text-[7px] text-white/80 font-mono tracking-wider">PHASE SHIFT 180°</span>
+            <span className="text-[7px] sm:text-[8px] text-white/90 font-bold tracking-wider">(REVERSE)</span>
           </div>
         );
       case 'EQUATION':
@@ -201,7 +219,7 @@ export const CardView: React.FC<CardViewProps> = ({
             <span className="font-black text-xs sm:text-sm tracking-tight text-amber-200 uppercase mt-0.5 leading-tight drop-shadow">
               โจทย์ฟิสิกส์
             </span>
-            <span className="text-[7px] text-white/80 font-mono tracking-wider">SHM FORMULA</span>
+            <span className="text-[7px] sm:text-[8px] text-white/90 font-bold tracking-wider">(สมการ SHM)</span>
           </div>
         );
       case 'WILD':
@@ -216,8 +234,8 @@ export const CardView: React.FC<CardViewProps> = ({
             <span className="font-black text-xs sm:text-sm tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-rose-300 via-amber-200 to-cyan-300 drop-shadow">
               เปลี่ยนสี
             </span>
-            <span className="text-[7px] sm:text-[8px] text-purple-200/90 uppercase font-mono tracking-wider">
-              QUANTUM STATE
+            <span className="text-[7px] sm:text-[8px] text-purple-200 font-bold uppercase tracking-wider">
+              (WILD)
             </span>
           </div>
         );
@@ -227,7 +245,7 @@ export const CardView: React.FC<CardViewProps> = ({
   };
 
   const cornerSymbol = () => {
-    if (card.type === 'NUMBER') return card.value;
+    if (card.type === 'NUMBER') return `${card.value} ${scheme.variableSymbol}`;
     if (card.type === 'DRAW_TWO') return '+2';
     if (card.type === 'SKIP') return '⏭';
     if (card.type === 'REVERSE') return '↺';

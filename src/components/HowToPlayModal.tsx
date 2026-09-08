@@ -110,6 +110,28 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
               </div>
 
               <div>
+                <h4 className="font-bold text-white text-base mb-2">ความหมายของสีไพ่ทั้ง 4 สี:</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-mono text-xs">
+                  <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-rose-500 flex-shrink-0" />
+                    <span>🔴 แดง = Amplitude (A) — แอมพลิจูด</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-200 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-cyan-400 flex-shrink-0" />
+                    <span>🔵 น้ำเงิน = Angular Frequency (ω) — ความถี่เชิงมุม</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" />
+                    <span>🟢 เขียว = Spring Constant (k) — ค่าคงที่สปริง</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-500/40 text-amber-200 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
+                    <span>🟡 เหลือง = Mass (m) — มวล</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <h4 className="font-bold text-white text-base mb-2">รอบการเล่นในแต่ละเทิร์น:</h4>
                 <ol className="list-decimal list-inside space-y-2 text-slate-300">
                   <li>ดูไพ่ใบบนสุดของ <strong>กองไพ่ทิ้ง (Discard Pile)</strong> ที่อยู่กลางโต๊ะ</li>

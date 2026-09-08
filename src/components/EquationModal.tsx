@@ -190,8 +190,24 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
           {/* Variables & Blanks List */}
           <div className="space-y-3 text-left">
-            <div className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
-              ตัวแปรและช่องว่างที่ต้องใส่ค่า (EQUATION BLANKS):
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
+                ตัวแปรและช่องว่างที่ต้องใส่ค่า (EQUATION BLANKS):
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
+                <span className="px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/50 text-rose-200">
+                  🔴 แดง = Amplitude (A) — แอมพลิจูด
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/50 text-cyan-200">
+                  🔵 น้ำเงิน = Angular Frequency (ω) — ความถี่เชิงมุม
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-500/50 text-emerald-200">
+                  🟢 เขียว = Spring Constant (k) — ค่าคงที่สปริง
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-200">
+                  🟡 เหลือง = Mass (m) — มวล
+                </span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -510,33 +526,33 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                           </p>
                         </div>
                       ) : (
-                        <div className="flex flex-col sm:flex-row gap-2.5">
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const targetId = claimingPlayer?.id || claimedByPlayerId || localPlayerId;
+                            if (targetId && answerInput.trim()) {
+                              onSubmitAnswer(targetId, answerInput.trim());
+                            }
+                          }}
+                          className="flex flex-col sm:flex-row gap-2.5"
+                        >
                           <input
                             type="text"
                             value={answerInput}
                             onChange={(e) => setAnswerInput(e.target.value)}
-                            placeholder={`เช่น 0.5 หรือ 1/2 หรือ 4π`}
+                            placeholder={`เช่น 40 หรือ 0.5 หรือ 1/2`}
                             autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && answerInput.trim() && claimingPlayer) {
-                                onSubmitAnswer(claimingPlayer.id, answerInput.trim());
-                              }
-                            }}
                             className="flex-1 px-4 py-3 bg-slate-900 border border-cyan-400/80 rounded-2xl text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 shadow-inner"
                           />
                           <button
+                            type="submit"
                             disabled={!answerInput.trim()}
-                            onClick={() => {
-                              if (claimingPlayer && answerInput.trim()) {
-                                onSubmitAnswer(claimingPlayer.id, answerInput.trim());
-                              }
-                            }}
                             className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 text-slate-950 font-black rounded-2xl text-sm transition-all hover:scale-105 active:scale-95 shadow-lg shadow-emerald-950/40 cursor-pointer flex items-center justify-center gap-2"
                           >
                             <span>ส่งคำตอบ</span>
                             <CornerDownLeft className="w-4 h-4" />
                           </button>
-                        </div>
+                        </form>
                       )}
 
                       {/* Scientific Math Keypad */}
