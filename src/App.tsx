@@ -5,6 +5,7 @@ import {
   CardColor,
   EquationActiveState,
   EquationCard,
+  EquationResultState,
   GameLogEntry,
   GamePhase,
   GameState,
@@ -40,6 +41,7 @@ import {
   syncGameStateToSupabase,
   claimEquationAnswerAtomic,
   updateLobbyPlayersInSupabase,
+  leaveRoomInSupabase,
   subscribeToSupabaseRoom,
   getSavedRoomSession,
   clearRoomSession,
@@ -49,6 +51,11 @@ import {
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const gameStateRef = useRef<GameState | null>(gameState);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
   const [hasSavedGame, setHasSavedGame] = useState<boolean>(false);
   const [showHowToPlay, setShowHowToPlay] = useState<boolean>(false);
   const [showAbout, setShowAbout] = useState<boolean>(false);
@@ -137,24 +144,36 @@ export default function App() {
       status: record.status as any,
       players: record.players || [],
       maxPlayers: 6,
-    }));
+      version: record.version,
+    } as any));
+
+    // Update localOnlinePlayer state from latest players list
+    setLocalOnlinePlayer((prev) => {
+      if (!prev || !record.players) return prev;
+      const meInRecord = record.players.find((p) => p.id === prev.id);
+      return meInRecord ? { ...prev, ...meInRecord } : prev;
+    });
 
     // 2. Update Game State if record has state and version is >= current
     if (record.state) {
       const incomingState = record.state;
       setGameState((prevState) => {
         const prevVersion = prevState?.version ?? 0;
-        const incomingVersion = incomingState.version ?? 0;
+        const incomingVersion = incomingState.version ?? record.version ?? 0;
+        const isGameStarting =
+          (prevState?.gamePhase === 'LOBBY' || prevState?.gamePhase === 'MENU' || !prevState) &&
+          incomingState.gamePhase !== 'LOBBY' &&
+          incomingState.gamePhase !== 'MENU';
 
-        if (!prevState || incomingVersion >= prevVersion) {
-          // If room transitions to PLAYING, dismiss lobby modal
+        if (!prevState || incomingVersion >= prevVersion || isGameStarting) {
+          // If room transitions to PLAYING, dismiss lobby modal immediately
           if (incomingState.gamePhase !== 'LOBBY' && incomingState.gamePhase !== 'MENU') {
             setShowOnlineLobby(false);
           }
           return {
             ...incomingState,
             roomId: record.room_code,
-            version: incomingVersion,
+            version: Math.max(incomingVersion, prevVersion),
           };
         }
         return prevState;
@@ -210,16 +229,26 @@ export default function App() {
   const syncOnlineGameState = useCallback(
     async (newState: GameState, announcement?: ActionAnnouncement) => {
       if (!newState.roomId) return;
-      const currentVer = newState.version || 1;
+      const baseVersion = newState.version || 1;
       const stateToSync: GameState = {
         ...newState,
-        version: currentVer + 1,
+        version: baseVersion + 1,
         actionAnnouncement: announcement || newState.actionAnnouncement || null,
         lastActionTime: Date.now(),
       };
 
       try {
-        await syncGameStateToSupabase(newState.roomId, stateToSync, stateToSync.version);
+        const result = await syncGameStateToSupabase(newState.roomId, stateToSync, baseVersion);
+        if (result.success && result.newVersion) {
+          setGameState((prev) => (prev ? { ...prev, version: result.newVersion } : prev));
+        } else if (!result.success && result.state) {
+          console.warn('Sync conflict: reconciling with server state version', result.newVersion);
+          setGameState({
+            ...result.state,
+            roomId: newState.roomId,
+            version: result.newVersion,
+          });
+        }
       } catch (err: any) {
         console.error('Failed to sync state to Supabase:', err);
       }
@@ -318,7 +347,10 @@ export default function App() {
     await updateLobbyPlayersInSupabase(onlineRoomInfo.roomId, updatedPlayers);
   };
 
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
+    if (onlineRoomInfo && localOnlinePlayer) {
+      await leaveRoomInSupabase(onlineRoomInfo.roomId, localOnlinePlayer.id);
+    }
     if (supabaseUnsubRef.current) {
       supabaseUnsubRef.current();
       supabaseUnsubRef.current = null;
@@ -332,7 +364,21 @@ export default function App() {
   };
 
   const handleStartOnlineGame = async () => {
-    if (!onlineRoomInfo || onlineRoomInfo.players.length < 2) return;
+    if (!onlineRoomInfo) return;
+    if (onlineRoomInfo.players.length < 2) {
+      showToast('⚠️ ต้องมีผู้เล่นอย่างน้อย 2 คนขึ้นไป (กดเพิ่มบอทช่วยเล่นได้)');
+      return;
+    }
+
+    // Verify all non-bot guests are ready
+    const humanGuests = onlineRoomInfo.players.filter((p) => !p.isHost && !p.isBot);
+    const unreadyGuests = humanGuests.filter((p) => !p.isReady);
+    if (unreadyGuests.length > 0) {
+      showToast(
+        `⚠️ ยังเริ่มเกมไม่ได้: รอให้ ${unreadyGuests.map((u) => u.name).join(', ')} กดพร้อมเล่นก่อน`
+      );
+      return;
+    }
 
     // Host initializes game state
     const deck = createMainDeck();
@@ -380,6 +426,10 @@ export default function App() {
       createLog(`ไพ่ใบแรกบนกองทิ้งคือ ${firstCard.color} ${firstCard.value ?? firstCard.type}`, 'play'),
     ];
 
+    const currentRoomVersion =
+      (onlineRoomInfo as any).version ?? (gameState?.version ?? 1);
+    const startVersion = Math.max(currentRoomVersion + 1, 2);
+
     const initialGameState: GameState = {
       players,
       currentPlayerIndex: 0,
@@ -398,12 +448,12 @@ export default function App() {
       lastActionTime: Date.now(),
       roomId: onlineRoomInfo.roomId,
       actionAnnouncement: initialAnnouncement,
-      version: 1,
+      version: startVersion,
     };
 
     setGameState(initialGameState);
     setShowOnlineLobby(false);
-    await syncGameStateToSupabase(onlineRoomInfo.roomId, initialGameState, 1);
+    await syncGameStateToSupabase(onlineRoomInfo.roomId, initialGameState, currentRoomVersion);
   };
 
   // ================= START GAME / NEW GAME (SINGLEPLAYER) =================
@@ -552,12 +602,38 @@ export default function App() {
     const player = st.players[st.currentPlayerIndex];
     if (!player) return;
 
+    // Turn Guard in online mode: only active player (or host for bots) can play
+    if (gameState.roomId) {
+      if (player.isBot) {
+        if (!localOnlinePlayer?.isHost) return;
+      } else {
+        if (player.id !== localPlayerId) {
+          showToast('⚠️ ยังไม่ถึงตาเล่นของคุณ!');
+          return;
+        }
+      }
+    }
+
     // Remove card from player hand
     const updatedHand = player.hand.filter((c) => c.id !== card.id);
+    let calledHarmonic = updatedHand.length === 1 ? player.calledHarmonic : false;
+
+    // If bot has 1 card left, bot decides whether to call Harmonic (90% success, 10% forgets)
+    if (player.isBot && updatedHand.length === 1) {
+      const botCalls = Math.random() < 0.90;
+      calledHarmonic = botCalls;
+      if (botCalls) {
+        st.logs = [
+          createLog(`🎵 HARMONIC! Player ${player.letter} (${player.name}) ประกาศ “HARMONIC!” (เหลือไพ่ 1 ใบ)`, 'harmonic'),
+          ...st.logs,
+        ];
+      }
+    }
+
     const updatedPlayer: Player = {
       ...player,
       hand: updatedHand,
-      calledHarmonic: updatedHand.length === 1 ? player.calledHarmonic : false,
+      calledHarmonic,
     };
 
     const updatedPlayers = [...st.players];
@@ -599,7 +675,15 @@ export default function App() {
     // Handle Card Types:
     if (card.type === 'WILD') {
       if (player.isBot) {
-        const chosenColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+        // Pick the color the bot has the most cards of in its remaining hand
+        const availableColors: CardColor[] = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
+        const colorCounts: Record<string, number> = { RED: 0, BLUE: 0, GREEN: 0, YELLOW: 0 };
+        updatedHand.forEach((c) => {
+          if (c.color !== 'WILD') colorCounts[c.color] = (colorCounts[c.color] || 0) + 1;
+        });
+        const chosenColor = availableColors.reduce((a, b) =>
+          colorCounts[a] >= colorCounts[b] ? a : b
+        );
         st.currentColor = chosenColor;
         const announcement: ActionAnnouncement = {
           id: `ann-${Date.now()}`,
@@ -619,8 +703,24 @@ export default function App() {
         syncOnlineGameState(nextState, announcement);
       } else {
         st.gamePhase = 'WILD_COLOR_PICK';
+        st.wildPickerPlayerId = player.id;
+        st.wildPickerPlayerName = player.name;
         setWildPickerPlayer(player);
+        const announcement: ActionAnnouncement = {
+          id: `ann-${Date.now()}`,
+          title: `★ ไพ่เปลี่ยนสี WILD!`,
+          subtitle: `${player.name} กำลังเลือกสีนำของเกม...`,
+          type: 'SPECIAL',
+          card,
+          durationMs: 2500,
+        };
+        st.actionAnnouncement = announcement;
+        st.logs = [
+          createLog(`★ WILD! Player ${player.letter} (${player.name}) เล่น WILD และกำลังเลือกสีใหม่`, 'special'),
+          ...st.logs,
+        ];
         setGameState(st);
+        syncOnlineGameState(st, announcement);
       }
       return;
     }
@@ -734,22 +834,27 @@ export default function App() {
 
   // ================= ACTION: WILD COLOR SELECTION =================
   const handleSelectWildColor = (chosenColor: CardColor) => {
-    if (!gameState || !wildPickerPlayer) return;
+    if (!gameState) return;
+    const pickerId = gameState.wildPickerPlayerId || wildPickerPlayer?.id;
+    const picker = gameState.players.find((p) => p.id === pickerId) || wildPickerPlayer;
+    if (!picker) return;
 
     let st = { ...gameState };
     st.currentColor = chosenColor;
     st.gamePhase = 'PLAYING';
+    st.wildPickerPlayerId = null;
+    st.wildPickerPlayerName = null;
 
     const announcement: ActionAnnouncement = {
       id: `ann-${Date.now()}`,
       title: `★ เปลี่ยนสีเป็น: ${chosenColor}`,
-      subtitle: `${wildPickerPlayer.name} ได้เลือกเปลี่ยนทิศทางสีของเกม`,
+      subtitle: `${picker.name} ได้เลือกเปลี่ยนสีนำของเกม`,
       type: 'SPECIAL',
       durationMs: 2200,
     };
     st.actionAnnouncement = announcement;
     st.logs = [
-      createLog(`Player ${wildPickerPlayer.letter} (${wildPickerPlayer.name}) เลือกเปลี่ยนเป็นสี ${chosenColor}`, 'special'),
+      createLog(`Player ${picker.letter} (${picker.name}) เลือกเปลี่ยนเป็นสี ${chosenColor}`, 'special'),
       ...st.logs,
     ];
     setWildPickerPlayer(null);
@@ -765,6 +870,18 @@ export default function App() {
     let st = ensureDeckCards({ ...gameState }, 1);
     const player = st.players[st.currentPlayerIndex];
     if (!player || st.deck.length === 0) return;
+
+    // Turn Guard in online mode: only active player (or host for bots) can draw
+    if (gameState.roomId) {
+      if (player.isBot) {
+        if (!localOnlinePlayer?.isHost) return;
+      } else {
+        if (player.id !== localPlayerId) {
+          showToast('⚠️ ยังไม่ถึงตาเล่นของคุณ!');
+          return;
+        }
+      }
+    }
 
     const drawnCard = st.deck.shift()!;
     const topCard = st.discardPile[st.discardPile.length - 1];
@@ -789,8 +906,13 @@ export default function App() {
 
     if (player.isBot) {
       if (isPlayable) {
+        st.drawnCardChoice = { card: drawnCard, playerId: player.id };
         setGameState(st);
-        setTimeout(() => handlePlayCard(drawnCard), 1600);
+        setTimeout(() => {
+          if (gameStateRef.current?.drawnCardChoice?.playerId === player.id) {
+            handlePlayDrawnCardChoice(true);
+          }
+        }, 1500);
       } else {
         const nextState = advanceTurn(st, 1);
         setGameState(nextState);
@@ -800,6 +922,7 @@ export default function App() {
       if (isPlayable) {
         st.drawnCardChoice = { card: drawnCard, playerId: player.id };
         setGameState(st);
+        syncOnlineGameState(st, announcement);
       } else {
         showToast(`🎴 จั่วได้ ${drawnCard.color} ${drawnCard.value ?? drawnCard.type} (ลงไม่ได้ จบตา)`);
         const nextState = advanceTurn(st, 1);
@@ -827,6 +950,8 @@ export default function App() {
   // ================= ACTION: CALL HARMONIC & CATCH =================
   const handleCallHarmonic = (playerId: string) => {
     if (!gameState) return;
+    // In online mode, you can only declare Harmonic for yourself
+    if (gameState.roomId && playerId !== localPlayerId) return;
     const st = { ...gameState };
     const p = st.players.find((player) => player.id === playerId);
     if (!p) return;
@@ -859,8 +984,17 @@ export default function App() {
     if (!target || target.hand.length !== 1 || target.calledHarmonic) return;
 
     const penaltyCards = st.deck.splice(0, 2);
-    target.hand.push(...penaltyCards);
-    target.calledHarmonic = false;
+    const updatedPlayers = st.players.map((p) => {
+      if (p.id === targetPlayerId) {
+        return {
+          ...p,
+          hand: [...p.hand, ...penaltyCards],
+          calledHarmonic: false,
+        };
+      }
+      return p;
+    });
+    st.players = updatedPlayers;
 
     const announcement: ActionAnnouncement = {
       id: `ann-${Date.now()}`,
@@ -957,6 +1091,29 @@ export default function App() {
     const targetBlank = eqState.equation.blanks[blankIdx];
     targetBlank.filledValue = numberCard.value ?? 1;
 
+    // Check Win Condition: Player emptied their hand filling the equation!
+    if (updatedHand.length === 0) {
+      const winAnnouncement: ActionAnnouncement = {
+        id: `ann-${Date.now()}`,
+        title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
+        subtitle: 'ใช้ไพ่ใบสุดท้ายเติมตัวแปรสมการจนหมดมือเกลี้ยง!',
+        type: 'WIN',
+        card: numberCard,
+        durationMs: 4500,
+      };
+      const finalState: GameState = {
+        ...gameState,
+        gamePhase: 'GAME_OVER',
+        winner: player,
+        players: updatedPlayers,
+        actionAnnouncement: winAnnouncement,
+        currentEquationState: null,
+      };
+      setGameState(finalState);
+      syncOnlineGameState(finalState, winAnnouncement);
+      return;
+    }
+
     const nextBlankIdx = blankIdx + 1;
     const isFinished = nextBlankIdx >= eqState.equation.blanks.length;
 
@@ -987,18 +1144,27 @@ export default function App() {
     if (!gameState || !gameState.currentEquationState) return;
 
     let st = ensureDeckCards({ ...gameState }, 1);
-    const player = st.players.find((p) => p.id === playerId);
+    const playerIndex = st.players.findIndex((p) => p.id === playerId);
     const blank = st.currentEquationState.equation.blanks[blankIdx];
-    if (!player || !blank || st.deck.length === 0) return;
+    if (playerIndex === -1 || !blank || st.deck.length === 0) return;
 
     const drawnCard = st.deck.shift()!;
-    player.hand.push(drawnCard);
+    const targetPlayer = st.players[playerIndex];
+    const updatedPlayer: Player = {
+      ...targetPlayer,
+      hand: [...targetPlayer.hand, drawnCard],
+    };
+    const updatedPlayers = [...st.players];
+    updatedPlayers[playerIndex] = updatedPlayer;
+    st.players = updatedPlayers;
 
-    showToast(`🎴 ${player.name} จั่วไพ่ 1 ใบ`);
+    showToast(`🎴 ${targetPlayer.name} จั่วไพ่ 1 ใบ`);
 
     if (drawnCard.type === 'NUMBER' && drawnCard.color === blank.color) {
+      setGameState(st);
       handleFillBlank(blankIdx, drawnCard, playerId);
     } else {
+      setGameState(st);
       handleSkipPlayerCascading(blankIdx);
     }
   };
@@ -1093,16 +1259,21 @@ export default function App() {
       let st = ensureDeckCards({ ...gameState }, 1);
       const drawnPenalty = st.deck.shift();
       if (drawnPenalty) {
-        player.hand.push(drawnPenalty);
+        updatedPlayers = updatedPlayers.map((p) =>
+          p.id === playerId ? { ...p, hand: [...p.hand, drawnPenalty] } : p
+        );
       }
       newDisqualified.push(playerId);
     }
 
-    const resultState = {
+    const resultState: EquationResultState = {
       answeredPlayerId: playerId,
+      answeringPlayerId: playerId,
       submittedText: answerText,
       correct: isCorrect,
       solution: sol,
+      steps: sol.explanationSteps || [],
+      correctAnswerDisplay: sol.displayAnswer,
       pendingFreeDiscardPlayerId: pendingFreeDiscard,
     };
 
@@ -1130,6 +1301,50 @@ export default function App() {
 
     setGameState(nextState);
     syncOnlineGameState(nextState);
+
+    // Bot automation after answering
+    if (isCorrect && player.isBot) {
+      setTimeout(() => {
+        const latestState = gameStateRef.current;
+        const botP = latestState?.players.find((p) => p.id === playerId);
+        if (botP && botP.hand.length > 0) {
+          handleFreeDiscardCard(playerId, botP.hand[0].id);
+          setTimeout(() => {
+            handleCloseEquation();
+          }, 2400);
+        } else {
+          handleCloseEquation();
+        }
+      }, 1500);
+    } else if (!isCorrect) {
+      if (newDisqualified.length >= gameState.players.length) {
+        // Everyone was disqualified, auto-close after 3.2s
+        setTimeout(() => {
+          handleCloseEquation();
+        }, 3200);
+      } else {
+        // Other players can still answer, reset buzzer after 3.5s
+        setTimeout(() => {
+          handleResetEquationForRetry();
+        }, 3500);
+      }
+    }
+  };
+
+  const handleResetEquationForRetry = () => {
+    if (!gameState || !gameState.currentEquationState) return;
+    const eqState: EquationActiveState = {
+      ...gameState.currentEquationState,
+      claimedByPlayerId: null,
+      resultState: null,
+    };
+    const nextState: GameState = {
+      ...gameState,
+      gamePhase: 'EQUATION_ACTIVE',
+      currentEquationState: eqState,
+    };
+    setGameState(nextState);
+    syncOnlineGameState(nextState);
   };
 
   const handleFreeDiscardCard = (playerId: string, cardId: string) => {
@@ -1145,6 +1360,29 @@ export default function App() {
     const updatedPlayers = gameState.players.map((p) =>
       p.id === playerId ? { ...p, hand: updatedHand } : p
     );
+
+    // Check Win Condition: Player emptied hand with free discard!
+    if (updatedHand.length === 0) {
+      const winAnnouncement: ActionAnnouncement = {
+        id: `ann-${Date.now()}`,
+        title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
+        subtitle: 'ใช้สิทธิ์ทิ้งไพ่ฟรีจากสมการ SHM จนหมดมือเกลี้ยง!',
+        type: 'WIN',
+        card: discardedCard,
+        durationMs: 4500,
+      };
+      const finalState: GameState = {
+        ...gameState,
+        gamePhase: 'GAME_OVER',
+        winner: player,
+        players: updatedPlayers,
+        actionAnnouncement: winAnnouncement,
+        currentEquationState: null,
+      };
+      setGameState(finalState);
+      syncOnlineGameState(finalState, winAnnouncement);
+      return;
+    }
 
     const updatedResult = {
       ...gameState.currentEquationState.resultState,
@@ -1174,6 +1412,13 @@ export default function App() {
 
     setGameState(nextState);
     syncOnlineGameState(nextState);
+
+    // Auto-close equation 2.2 seconds after human player completes free discard
+    if (!player.isBot) {
+      setTimeout(() => {
+        handleCloseEquation();
+      }, 2200);
+    }
   };
 
   const handleCloseEquation = () => {
@@ -1193,27 +1438,59 @@ export default function App() {
   useEffect(() => {
     if (!gameState) return;
 
+    // In online rooms, only the Host should run bot autoplay logic to prevent duplicate actions
+    if (gameState.roomId && !localOnlinePlayer?.isHost) return;
+
+    // Bot catching players who forgot Harmonic:
+    const uncalled = gameState.players.filter((p) => p.hand.length === 1 && !p.calledHarmonic);
+    if (uncalled.length > 0 && gameState.gamePhase === 'PLAYING') {
+      const observingBots = gameState.players.filter((p) => p.isBot && p.id !== uncalled[0].id);
+      if (observingBots.length > 0) {
+        const catchTimer = setTimeout(() => {
+          const target = gameStateRef.current?.players.find((p) => p.id === uncalled[0].id);
+          if (target && target.hand.length === 1 && !target.calledHarmonic) {
+            handleCatchHarmonic(target.id);
+          }
+        }, 4000);
+        return () => clearTimeout(catchTimer);
+      }
+    }
+
     // Bot playing main turns
     if (gameState.gamePhase === 'PLAYING') {
+      // If drawnCardChoice is active for a bot, play it after delay
+      if (gameState.drawnCardChoice) {
+        const choicePlayer = gameState.players.find((p) => p.id === gameState.drawnCardChoice?.playerId);
+        if (choicePlayer && choicePlayer.isBot) {
+          const choiceTimer = setTimeout(() => {
+            handlePlayDrawnCardChoice(true);
+          }, 1400);
+          return () => clearTimeout(choiceTimer);
+        }
+        return;
+      }
+
       const currentP = gameState.players[gameState.currentPlayerIndex];
       if (currentP && currentP.isBot) {
-        // Slow down bot turns to ~2.2s so user can read what's happening
+        // Slow down bot turns to ~2.0s so user can read what's happening
         const botTimer = setTimeout(() => {
-          const topCard = gameState.discardPile[gameState.discardPile.length - 1];
-          const playableCards = currentP.hand.filter((c) =>
-            canPlayCard(c, topCard, gameState.currentColor)
+          const latest = gameStateRef.current;
+          if (!latest || latest.gamePhase !== 'PLAYING' || latest.currentPlayerIndex !== gameState.currentPlayerIndex) return;
+
+          const topCard = latest.discardPile[latest.discardPile.length - 1];
+          const botPlayer = latest.players[latest.currentPlayerIndex];
+          if (!botPlayer) return;
+
+          const playableCards = botPlayer.hand.filter((c) =>
+            canPlayCard(c, topCard, latest.currentColor)
           );
 
           if (playableCards.length > 0) {
-            const chosen = playableCards[0];
-            if (currentP.hand.length === 2) {
-              handleCallHarmonic(currentP.id);
-            }
-            handlePlayCard(chosen);
+            handlePlayCard(playableCards[0]);
           } else {
             handleDrawCard();
           }
-        }, 2200);
+        }, 2000);
 
         return () => clearTimeout(botTimer);
       }
@@ -1226,62 +1503,92 @@ export default function App() {
         const assignedP = gameState.players.find((p) => p.id === eqState.assignedPlayerId);
         if (assignedP && assignedP.isBot) {
           const fillTimer = setTimeout(() => {
-            const currentBlank = eqState.equation.blanks[eqState.currentBlankIndex];
+            const latestEq = gameStateRef.current?.currentEquationState;
+            if (!latestEq || latestEq.allFilled) return;
+
+            const currentBlank = latestEq.equation.blanks[latestEq.currentBlankIndex];
             if (!currentBlank) return;
 
-            const matching = assignedP.hand.filter(
+            const bot = gameStateRef.current?.players.find((p) => p.id === assignedP.id);
+            if (!bot) return;
+
+            const matching = bot.hand.filter(
               (c) => c.type === 'NUMBER' && c.color === currentBlank.color
             );
 
             if (matching.length > 0) {
-              handleFillBlank(eqState.currentBlankIndex, matching[0], assignedP.id);
+              handleFillBlank(latestEq.currentBlankIndex, matching[0], assignedP.id);
             } else {
-              handlePlayerDrawForColor(assignedP.id, eqState.currentBlankIndex);
+              handlePlayerDrawForColor(assignedP.id, latestEq.currentBlankIndex);
             }
-          }, 2400);
+          }, 2000);
 
           return () => clearTimeout(fillTimer);
         }
       } else if (eqState.allFilled && !eqState.claimedByPlayerId && !eqState.resultState) {
-        // Bot buzz-in if all blanks filled
+        // Bot buzz-in if all blanks filled and no one has buzzed in yet
         const eligibleBots = gameState.players.filter(
           (p) => p.isBot && !eqState.disqualifiedPlayerIds.includes(p.id)
         );
         if (eligibleBots.length > 0) {
           const buzzTimer = setTimeout(() => {
-            const randomBot = eligibleBots[Math.floor(Math.random() * eligibleBots.length)];
-            handleClaimAnswer(randomBot.id);
-
-            // Bot submits answer after thinking
-            setTimeout(() => {
-              const inputs: Record<string, number> = {};
-              for (const b of eqState.equation.blanks) {
-                inputs[b.variable] = b.filledValue ?? 1;
+            const latest = gameStateRef.current;
+            const latestEq = latest?.currentEquationState;
+            if (
+              latest?.gamePhase === 'EQUATION_ACTIVE' &&
+              latestEq &&
+              latestEq.allFilled &&
+              !latestEq.claimedByPlayerId &&
+              !latestEq.resultState
+            ) {
+              const currentEligibleBots = latest.players.filter(
+                (p) => p.isBot && !latestEq.disqualifiedPlayerIds.includes(p.id)
+              );
+              if (currentEligibleBots.length > 0) {
+                const randomBot = currentEligibleBots[Math.floor(Math.random() * currentEligibleBots.length)];
+                handleClaimAnswer(randomBot.id);
               }
-              const sol = eqState.equation.calculateAnswer(inputs);
-              const isSmart = Math.random() < 0.85;
-              const botAns = isSmart ? String(sol.numericValue) : '99';
-              handleSubmitAnswer(randomBot.id, botAns);
-            }, 2000);
-          }, 4500);
+            }
+          }, 3600);
 
           return () => clearTimeout(buzzTimer);
         }
-      } else if (eqState.resultState?.correct && eqState.resultState.pendingFreeDiscardPlayerId) {
-        const rewardingBot = gameState.players.find(
-          (p) => p.id === eqState.resultState?.pendingFreeDiscardPlayerId && p.isBot
-        );
-        if (rewardingBot && rewardingBot.hand.length > 0) {
-          const discardTimer = setTimeout(() => {
-            handleFreeDiscardCard(rewardingBot.id, rewardingBot.hand[0].id);
-          }, 2000);
-          return () => clearTimeout(discardTimer);
-        }
+      }
+    }
+
+    // Bot answering in Equation Modal (gamePhase === 'ANSWERING')
+    if (gameState.gamePhase === 'ANSWERING' && gameState.currentEquationState) {
+      const eqState = gameState.currentEquationState;
+      const claimant = gameState.players.find((p) => p.id === eqState.claimedByPlayerId);
+      if (claimant && claimant.isBot && !eqState.resultState) {
+        const answerTimer = setTimeout(() => {
+          const latest = gameStateRef.current;
+          const latestEq = latest?.currentEquationState;
+          if (
+            latest?.gamePhase === 'ANSWERING' &&
+            latestEq &&
+            latestEq.claimedByPlayerId === claimant.id &&
+            !latestEq.resultState
+          ) {
+            const inputs: Record<string, number> = {};
+            for (const b of latestEq.equation.blanks) {
+              inputs[b.variable] = b.filledValue ?? 1;
+            }
+            const sol = latestEq.equation.calculateAnswer(inputs);
+            // 85% chance bot gets it right, 15% chance bot makes a mistake
+            const isSmart = Math.random() < 0.85;
+            const botAns = isSmart ? String(sol.numericValue) : '99';
+            handleSubmitAnswer(claimant.id, botAns);
+          }
+        }, 2200);
+
+        return () => clearTimeout(answerTimer);
       }
     }
   }, [
     gameState?.gamePhase,
     gameState?.currentPlayerIndex,
+    gameState?.drawnCardChoice,
     gameState?.currentEquationState?.currentBlankIndex,
     gameState?.currentEquationState?.allFilled,
     gameState?.currentEquationState?.claimedByPlayerId,
@@ -1352,31 +1659,59 @@ export default function App() {
       />
 
       {/* Wild Color Selection Modal */}
-      {gameState?.gamePhase === 'WILD_COLOR_PICK' && wildPickerPlayer && (
-        <WildColorModal
-          isOpen={true}
-          playerName={wildPickerPlayer.name}
-          onSelectColor={handleSelectWildColor}
-        />
+      {gameState?.gamePhase === 'WILD_COLOR_PICK' && (
+        (() => {
+          const pickerId = gameState.wildPickerPlayerId || wildPickerPlayer?.id;
+          const picker = gameState.players.find((p) => p.id === pickerId) || wildPickerPlayer;
+          const isMyPick = !gameState.roomId || (localPlayerId && pickerId === localPlayerId);
+
+          if (isMyPick) {
+            return (
+              <WildColorModal
+                isOpen={true}
+                playerName={picker?.name || 'คุณ'}
+                onSelectColor={handleSelectWildColor}
+              />
+            );
+          } else {
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+                <div className="glass-panel-elevated rounded-3xl p-6 text-center space-y-3 max-w-sm w-full border border-cyan-400/40 shadow-2xl">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white animate-spin [animation-duration:8s]">
+                    <span className="text-xl">🎨</span>
+                  </div>
+                  <h3 className="text-base font-black text-white">กำลังรอการเลือกสีใหม่</h3>
+                  <p className="text-xs text-slate-300">
+                    {picker?.name || 'ผู้เล่น'} กำลังเลือกสีนำของเกม (แดง / ฟ้า / เขียว / เหลือง)
+                  </p>
+                </div>
+              </div>
+            );
+          }
+        })()
       )}
 
       {/* Equation Challenge Modal */}
-      {gameState?.gamePhase === 'EQUATION_ACTIVE' && gameState.currentEquationState && (
-        <EquationModal
-          isOpen={true}
-          state={gameState.currentEquationState}
-          players={gameState.players}
-          mainDeckCount={gameState.deck.length}
-          localPlayerId={gameState.roomId ? localOnlinePlayer?.id : undefined}
-          onFillBlank={handleFillBlank}
-          onPlayerDrawForColor={handlePlayerDrawForColor}
-          onSkipPlayerCascading={handleSkipPlayerCascading}
-          onClaimAnswer={handleClaimAnswer}
-          onSubmitAnswer={handleSubmitAnswer}
-          onFreeDiscardCard={handleFreeDiscardCard}
-          onCloseEquation={handleCloseEquation}
-        />
-      )}
+      {(gameState?.gamePhase === 'EQUATION_ACTIVE' || gameState?.gamePhase === 'ANSWERING') &&
+        gameState.currentEquationState && (
+          <EquationModal
+            isOpen={true}
+            state={gameState.currentEquationState}
+            players={gameState.players}
+            mainDeckCount={gameState.deck.length}
+            localPlayerId={localPlayerId}
+            isHost={localOnlinePlayer?.isHost ?? true}
+            isOnline={Boolean(gameState.roomId)}
+            onFillBlank={handleFillBlank}
+            onPlayerDrawForColor={handlePlayerDrawForColor}
+            onSkipPlayerCascading={handleSkipPlayerCascading}
+            onClaimAnswer={handleClaimAnswer}
+            onSubmitAnswer={handleSubmitAnswer}
+            onFreeDiscardCard={handleFreeDiscardCard}
+            onCloseEquation={handleCloseEquation}
+            onResetEquationForRetry={handleResetEquationForRetry}
+          />
+        )}
 
       {/* Supabase Database / Netlify Configuration Modal */}
       <SupabaseConfigModal

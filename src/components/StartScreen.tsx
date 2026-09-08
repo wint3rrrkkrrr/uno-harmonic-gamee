@@ -2,6 +2,18 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PlayerLetter } from '../types/game';
 import { PLAYER_LETTERS } from '../utils/cardUtils';
+import {
+  Globe,
+  Bot,
+  BookOpen,
+  Atom,
+  Sparkles,
+  ArrowRight,
+  Shuffle,
+  Users,
+  ChevronLeft,
+  Zap,
+} from 'lucide-react';
 
 interface StartScreenProps {
   onStartNewGame: (playersConfig: { name: string; letter: PlayerLetter; isBot: boolean }[]) => void;
@@ -19,11 +31,9 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   const [view, setView] = useState<'HOME' | 'SETUP'>('HOME');
   const [playerCount, setPlayerCount] = useState<number>(4);
   const [userName, setUserName] = useState<string>('ผู้เล่น (คุณ)');
-  // 'RANDOM' or 0, 1, 2, ...
   const [chosenSeat, setChosenSeat] = useState<'RANDOM' | number>(0);
 
   const handleLaunchBotGame = () => {
-    // Determine which seat index is human
     let humanIndex: number;
     if (chosenSeat === 'RANDOM') {
       humanIndex = Math.floor(Math.random() * playerCount);
@@ -35,9 +45,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
       const isHuman = idx === humanIndex;
       const letter = PLAYER_LETTERS[idx];
       return {
-        name: isHuman
-          ? userName.trim() || `Player ${letter}`
-          : `บอท ${letter} (AI)`,
+        name: isHuman ? userName.trim() || `Player ${letter}` : `บอท ${letter} (AI)`,
         letter,
         isBot: !isHuman,
       };
@@ -47,37 +55,42 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#08090d] bg-physics-grid text-slate-100 flex flex-col items-center justify-center p-4 overflow-hidden select-none">
-      {/* Background Animated Sine Waves */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
+    <div className="relative min-h-screen w-full bg-[#05070e] bg-physics-grid text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden select-none">
+      {/* Dynamic Quantum Glow Accents */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
+
+      {/* Background Animated Sine Wave SVG */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-25">
         <svg
           className="w-[200%] h-full -translate-x-1/4"
-          viewBox="0 0 1000 400"
+          viewBox="0 0 1200 400"
           preserveAspectRatio="none"
           fill="none"
           stroke="currentColor"
         >
           <path
-            d="M0 200 Q 125 50, 250 200 T 500 200 T 750 200 T 1000 200"
+            d="M0 200 Q 150 40, 300 200 T 600 200 T 900 200 T 1200 200"
             stroke="url(#grad1)"
-            strokeWidth="2.5"
+            strokeWidth="3"
           />
           <path
-            d="M0 220 Q 125 350, 250 220 T 500 220 T 750 220 T 1000 220"
+            d="M0 220 Q 150 360, 300 220 T 600 220 T 900 220 T 1200 220"
             stroke="url(#grad2)"
-            strokeWidth="1.5"
+            strokeWidth="1.8"
             opacity="0.6"
           />
           <defs>
             <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#f43f5e" />
-              <stop offset="35%" stopColor="#06b6d4" />
+              <stop offset="30%" stopColor="#06b6d4" />
               <stop offset="70%" stopColor="#10b981" />
               <stop offset="100%" stopColor="#f59e0b" />
             </linearGradient>
             <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#06b6d4" />
-              <stop offset="100%" stopColor="#8b5cf6" />
+              <stop offset="100%" stopColor="#a855f7" />
             </linearGradient>
           </defs>
         </svg>
@@ -88,93 +101,152 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           /* ================= HOME VIEW ================= */
           <motion.div
             key="home"
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.25 }}
-            className="relative z-10 w-full max-w-md glass-panel-elevated rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/10 text-center space-y-6"
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="relative z-10 w-full max-w-xl flex flex-col items-center text-center space-y-6 sm:space-y-8"
           >
-            {/* Logo Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-400/25 text-indigo-200 text-xs font-mono tracking-wider uppercase">
-              <span className="text-cyan-400">∿</span> SHM Physics Card Game
-            </div>
+            {/* Header / Title Area */}
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-500/20 via-cyan-500/20 to-emerald-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-mono font-bold tracking-widest uppercase shadow-lg shadow-cyan-950/40 backdrop-blur-md">
+                <Atom className="w-4 h-4 text-cyan-400 animate-spin [animation-duration:12s]" />
+                <span>Simple Harmonic Motion Physics Card Game</span>
+              </div>
 
-            <div>
-              <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-cyan-300 to-amber-300 drop-shadow-md">
+              <h1 className="text-6xl sm:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-cyan-300 to-amber-300 drop-shadow-[0_4px_16px_rgba(6,182,212,0.3)]">
                 HARMONIC
               </h1>
-              <p className="text-sm text-slate-300 mt-2 font-medium">
-                เกมการ์ดสไตล์ UNO ผสมการคำนวณ Simple Harmonic Motion
+
+              <p className="text-sm sm:text-base text-slate-300 max-w-md mx-auto leading-relaxed font-medium">
+                เกมการ์ดประลองไหวพริบสไตล์ UNO ผสมการคำนวณสูตรฟิสิกส์ SHM
+                ท้าทายความเร็ว ชิงสิทธิ์ตอบโจทย์ และประกาศ <span className="text-amber-300 font-bold">“HARMONIC!”</span> เพื่อคว้าชัยชนะ
               </p>
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-3 pt-1">
-              {/* ONLINE MULTIPLAYER BUTTON */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
+            {/* Game Mode Cards Grid */}
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* ONLINE MULTIPLAYER CARD */}
+              <motion.div
+                whileHover={{ y: -5, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onOpenOnlineLobby}
-                className="w-full py-3.5 px-6 bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-base rounded-2xl shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2.5 border border-cyan-300/40 cursor-pointer"
+                className="group relative glass-panel-elevated rounded-3xl p-6 text-left border border-cyan-500/30 hover:border-cyan-400/80 shadow-2xl transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
               >
-                <span className="text-lg">🌐</span>
-                <span>เล่นออนไลน์ (สร้างห้อง / ใส่รหัสห้อง)</span>
-              </motion.button>
+                {/* Glow aura on hover */}
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/20 rounded-full blur-2xl group-hover:bg-cyan-500/40 transition-all pointer-events-none" />
 
-              {/* SINGLEPLAYER WITH BOTS BUTTON */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 shadow-lg shadow-cyan-500/30">
+                      <Globe className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-bold font-mono">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      LIVE
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-black text-white group-hover:text-cyan-200 transition-colors">
+                    เล่นออนไลน์
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    สร้างห้องเล่นกับเพื่อน แชร์รหัสห้อง 4 หลัก หรือจับคู่ประลองความเร็วแบบเรียลไทม์
+                  </p>
+                </div>
+
+                <div className="mt-5 flex items-center gap-2 text-cyan-300 font-bold text-xs group-hover:translate-x-1 transition-transform">
+                  <span>เข้าสู่ล็อบบี้ออนไลน์</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </motion.div>
+
+              {/* SINGLEPLAYER VS AI BOTS CARD */}
+              <motion.div
+                whileHover={{ y: -5, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setView('SETUP')}
-                className="w-full py-3.5 px-6 bg-slate-800/90 hover:bg-slate-700/90 text-white font-black text-base rounded-2xl shadow-lg border border-white/15 flex items-center justify-center gap-2 cursor-pointer"
+                className="group relative glass-panel-elevated rounded-3xl p-6 text-left border border-indigo-500/30 hover:border-indigo-400/80 shadow-2xl transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
               >
-                <span className="text-lg">🤖</span>
-                <span>เล่นกับบอท (Singleplayer)</span>
-              </motion.button>
+                {/* Glow aura on hover */}
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl group-hover:bg-indigo-500/40 transition-all pointer-events-none" />
 
-              {/* HOW TO PLAY & FORMULAS */}
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
-                <button
-                  onClick={onOpenHowToPlay}
-                  className="py-2.5 px-3 glass-panel-subtle hover:bg-slate-800 text-slate-300 hover:text-white font-bold rounded-xl text-xs border border-white/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <span>📖 กติกาการเล่น</span>
-                </button>
-                <button
-                  onClick={onOpenAbout}
-                  className="py-2.5 px-3 glass-panel-subtle hover:bg-slate-800 text-slate-300 hover:text-white font-bold rounded-xl text-xs border border-white/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <span>ℹ️ สูตรฟิสิกส์ SHM</span>
-                </button>
-              </div>
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+                      <Bot className="w-6 h-6" />
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 text-[11px] font-bold font-mono">
+                      OFFLINE
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-black text-white group-hover:text-indigo-200 transition-colors">
+                    เล่นกับบอท AI
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    ฝึกทักษะการคำนวณและตัดแต้มกับบอทอัจฉริยะ ปรับจำนวนผู้เล่นและลำดับที่นั่งได้อิสระ
+                  </p>
+                </div>
+
+                <div className="mt-5 flex items-center gap-2 text-indigo-300 font-bold text-xs group-hover:translate-x-1 transition-transform">
+                  <span>ตั้งค่าและเริ่มเกม</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Quick Navigation: Rules & Formulas */}
+            <div className="w-full flex items-center justify-center gap-3 pt-1">
+              <button
+                onClick={onOpenHowToPlay}
+                className="py-2.5 px-4 glass-panel-subtle hover:bg-slate-800 text-slate-300 hover:text-white font-bold rounded-2xl text-xs border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <BookOpen className="w-4 h-4 text-cyan-400" />
+                <span>กติกาการเล่น & สัญลักษณ์ไพ่</span>
+              </button>
+
+              <button
+                onClick={onOpenAbout}
+                className="py-2.5 px-4 glass-panel-subtle hover:bg-slate-800 text-slate-300 hover:text-white font-bold rounded-2xl text-xs border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>สรุปสูตรฟิสิกส์ SHM</span>
+              </button>
             </div>
           </motion.div>
         ) : (
           /* ================= SETUP VIEW ================= */
           <motion.div
             key="setup"
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.25 }}
-            className="relative z-10 w-full max-w-md glass-panel-elevated rounded-3xl p-6 sm:p-7 shadow-2xl border border-white/10 space-y-5"
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="relative z-10 w-full max-w-md glass-panel-elevated rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/15 space-y-5"
           >
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <button
                 onClick={() => setView('HOME')}
-                className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                ← ย้อนกลับ
+                <ChevronLeft className="w-4 h-4" />
+                <span>ย้อนกลับ</span>
               </button>
-              <h2 className="text-base font-black text-white tracking-wide">
-                ตั้งค่าเล่นกับบอท AI
-              </h2>
-              <div className="w-12" />
+
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-cyan-400" />
+                <h2 className="text-sm sm:text-base font-black text-white tracking-wide">
+                  ตั้งค่าผู้เล่นกับบอท AI
+                </h2>
+              </div>
+              <div className="w-10" />
             </div>
 
             {/* Player Name Input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block">
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider block">
                 ชื่อของคุณ:
               </label>
               <input
@@ -182,15 +254,22 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="ระบุชื่อของคุณ"
-                className="w-full px-3.5 py-2 bg-slate-900 border border-white/15 rounded-xl text-white text-sm font-bold focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                maxLength={20}
+                className="w-full px-4 py-2.5 bg-slate-900/90 border border-white/15 rounded-2xl text-white text-sm font-bold focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all shadow-inner"
               />
             </div>
 
             {/* Number of Players */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider block">
-                จำนวนผู้เล่นทั้งหมด (2–6 คน):
-              </label>
+            <div className="space-y-1.5 text-left">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider">
+                  จำนวนผู้เล่นทั้งหมด:
+                </label>
+                <span className="text-xs font-mono font-black text-cyan-300">
+                  {playerCount} คน (คุณ + บอท {playerCount - 1} ตัว)
+                </span>
+              </div>
+
               <div className="grid grid-cols-5 gap-1.5">
                 {[2, 3, 4, 5, 6].map((num) => (
                   <button
@@ -204,7 +283,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                     }}
                     className={`py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
                       playerCount === num
-                        ? 'bg-cyan-500 text-slate-950 shadow-md font-black'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/30 font-black scale-105'
                         : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 border border-white/10'
                     }`}
                   >
@@ -214,35 +293,33 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               </div>
             </div>
 
-            {/* SEAT SELECTION: Choose position or Random */}
-            <div className="space-y-1.5">
+            {/* Seat Selection */}
+            <div className="space-y-1.5 text-left">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">
-                  ตำแหน่งผู้เล่นของคุณ (คนที่เท่าไหร่):
+                <label className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider">
+                  ลำดับตำแหน่งที่นั่ง:
                 </label>
                 <span className="text-[11px] text-cyan-400 font-bold font-mono">
                   {chosenSeat === 'RANDOM'
                     ? '🎲 สุ่มตำแหน่ง'
-                    : `คนที่ ${chosenSeat + 1} (${PLAYER_LETTERS[chosenSeat]})`}
+                    : `คนที่ ${chosenSeat + 1} (Player ${PLAYER_LETTERS[chosenSeat]})`}
                 </span>
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 pt-1">
-                {/* Random Button */}
                 <button
                   type="button"
                   onClick={() => setChosenSeat('RANDOM')}
-                  className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     chosenSeat === 'RANDOM'
-                      ? 'bg-amber-500 text-slate-950 shadow-md font-black ring-2 ring-amber-300'
+                      ? 'bg-amber-400 text-slate-950 shadow-md font-black ring-2 ring-amber-300 scale-105'
                       : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 border border-white/10'
                   }`}
                 >
-                  <span>🎲</span>
+                  <Shuffle className="w-3.5 h-3.5" />
                   <span>สุ่มตำแหน่ง</span>
                 </button>
 
-                {/* Specific Seats A, B, C... */}
                 {Array.from({ length: playerCount }).map((_, idx) => (
                   <button
                     key={idx}
@@ -250,21 +327,22 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                     onClick={() => setChosenSeat(idx)}
                     className={`py-2 px-2 rounded-xl text-xs transition-all cursor-pointer ${
                       chosenSeat === idx
-                        ? 'bg-cyan-500 text-slate-950 font-black shadow-md ring-2 ring-cyan-300'
+                        ? 'bg-cyan-400 text-slate-950 font-black shadow-md ring-2 ring-cyan-300 scale-105'
                         : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 border border-white/10 font-bold'
                     }`}
                   >
-                    คนที่ {idx + 1} ({PLAYER_LETTERS[idx]})
-                    {idx === 0 && <span className="block text-[9px] opacity-80">เริ่มก่อน</span>}
+                    {idx + 1} ({PLAYER_LETTERS[idx]})
+                    {idx === 0 && <span className="block text-[9px] opacity-70">เริ่มก่อน</span>}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-400 pt-0.5">
+
+              <p className="text-[11px] text-slate-400 pt-1">
                 {chosenSeat === 0
-                  ? 'คุณจะได้เริ่มเล่นเป็นคนแรก (Player A)'
+                  ? '🎯 คุณจะได้เริ่มเล่นเป็นคนแรก (Player A)'
                   : chosenSeat === 'RANDOM'
-                  ? 'ระบบจะสุ่มเลือกว่าคุณจะได้เล่นเป็นคนที่เท่าไหร่'
-                  : `คุณจะได้เล่นเป็นลำดับที่ ${Number(chosenSeat) + 1} (บอทอื่นจะเล่นก่อนหน้า)`}
+                  ? '🎲 ระบบจะสุ่มลำดับรอบการเล่นให้คุณอัตโนมัติ'
+                  : `⏳ คุณจะได้เล่นเป็นลำดับที่ ${Number(chosenSeat) + 1} (บอทอื่นจะเริ่มเล่นก่อน)`}
               </p>
             </div>
 
@@ -273,9 +351,10 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleLaunchBotGame}
-              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-cyan-500 to-indigo-600 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-base rounded-2xl shadow-xl transition-all border border-white/20 cursor-pointer"
+              className="w-full py-4 bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 hover:from-emerald-300 hover:to-cyan-300 text-slate-950 font-black text-base rounded-2xl shadow-xl shadow-cyan-500/25 transition-all border border-cyan-200/50 cursor-pointer flex items-center justify-center gap-2"
             >
-              🚀 เริ่มเล่นเกมทันที
+              <Zap className="w-5 h-5 text-slate-950 fill-slate-950" />
+              <span>เริ่มเล่นเกมทันที</span>
             </motion.button>
           </motion.div>
         )}

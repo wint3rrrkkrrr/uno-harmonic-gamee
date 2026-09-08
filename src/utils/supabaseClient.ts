@@ -358,17 +358,24 @@ export async function joinRoomInSupabase(
     version: (room.version || 1) + 1,
   };
 
-  const { error: updateErr } = await supabase
+  const { data: updatedRecord, error: updateErr } = await supabase
     .from('rooms')
     .update({
       players: updatedPlayers,
       state: updatedGameState,
       version: updatedGameState.version,
+      updated_at: new Date().toISOString(),
     })
-    .eq('room_code', cleanCode);
+    .eq('room_code', cleanCode)
+    .select()
+    .single();
 
   if (updateErr) {
     throw new Error(`เกิดข้อผิดพลาดในการเข้าร่วมห้อง: ${updateErr.message}`);
+  }
+
+  if (updatedRecord) {
+    broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
   }
 
   const roomInfo: OnlineRoomInfo = {
@@ -429,6 +436,53 @@ export async function reconnectRoomInSupabase(
   }
 }
 
+const _roomChannels = new Map<string, RealtimeChannel>();
+
+export function getOrCreateRoomChannel(roomCode: string): RealtimeChannel | null {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const cleanCode = roomCode.trim().toUpperCase();
+  const channelName = `room:${cleanCode}`;
+
+  let channel = _roomChannels.get(cleanCode);
+  if (!channel) {
+    channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: true },
+      },
+    });
+    _roomChannels.set(cleanCode, channel);
+  }
+  return channel;
+}
+
+export function broadcastRoomRecord(roomCode: string, record: Partial<RoomRecord> & { room_code: string }) {
+  const channel = getOrCreateRoomChannel(roomCode);
+  if (!channel) return;
+
+  try {
+    if (channel.state !== 'joined') {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          channel.send({
+            type: 'broadcast',
+            event: 'room_record_update',
+            payload: record,
+          });
+        }
+      });
+    } else {
+      channel.send({
+        type: 'broadcast',
+        event: 'room_record_update',
+        payload: record,
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to broadcast room record:', err);
+  }
+}
+
 /**
  * Atomic Synchronization of Game State to Supabase.
  * Uses optimistic locking with version checks to prevent race conditions.
@@ -450,13 +504,28 @@ export async function syncGameStateToSupabase(
     // 1. First attempt: Use atomic Postgres RPC stored procedure if installed
     const { data: rpcData, error: rpcErr } = await supabase.rpc('sync_room_state', {
       p_room_code: cleanCode,
-      p_new_state: newState,
+      p_new_state: {
+        ...newState,
+        version: currentVersion + 1,
+      },
       p_expected_version: currentVersion,
     });
 
     if (!rpcErr && rpcData) {
       if (rpcData.success) {
-        return { success: true, newVersion: rpcData.version, state: rpcData.state };
+        const finalState = {
+          ...(rpcData.state || newState),
+          version: rpcData.version,
+        };
+        broadcastRoomRecord(cleanCode, {
+          room_code: cleanCode,
+          host_id: '',
+          status: finalState.gamePhase || 'PLAYING',
+          version: rpcData.version,
+          players: finalState.players || [],
+          state: finalState,
+        });
+        return { success: true, newVersion: rpcData.version, state: finalState };
       }
       if (rpcData.conflict) {
         console.warn('State conflict detected via RPC, reloading fresh state');
@@ -474,27 +543,47 @@ export async function syncGameStateToSupabase(
     version: nextVersion,
   };
 
-  const { error } = await supabase
+  // Fetch host_id to preserve isHost flag accurately
+  const { data: currentRoom } = await supabase
+    .from('rooms')
+    .select('host_id, players')
+    .eq('room_code', cleanCode)
+    .maybeSingle();
+
+  const hostId = currentRoom?.host_id;
+  const updatedPlayers = stateWithVersion.players.map((p) => {
+    const existing = currentRoom?.players?.find((ep: any) => ep.id === p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      letter: p.letter,
+      isBot: p.isBot,
+      isHost: p.id === hostId || existing?.isHost || false,
+      isReady: true,
+      connected: true,
+    };
+  });
+
+  const { data: updatedRecord, error } = await supabase
     .from('rooms')
     .update({
       state: stateWithVersion,
       status: stateWithVersion.gamePhase,
-      players: stateWithVersion.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        letter: p.letter,
-        isBot: p.isBot,
-        isHost: false,
-        isReady: true,
-        connected: true,
-      })),
+      players: updatedPlayers,
       version: nextVersion,
+      updated_at: new Date().toISOString(),
     })
-    .eq('room_code', cleanCode);
+    .eq('room_code', cleanCode)
+    .select()
+    .single();
 
   if (error) {
     console.error('Failed to sync game state to Supabase:', error);
     return { success: false, newVersion: currentVersion };
+  }
+
+  if (updatedRecord) {
+    broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
   }
 
   return { success: true, newVersion: nextVersion, state: stateWithVersion };
@@ -564,17 +653,24 @@ export async function claimEquationAnswerAtomic(
     version: (room.version || 1) + 1,
   };
 
-  const { error: updateErr } = await supabase
+  const { data: updatedRecord, error: updateErr } = await supabase
     .from('rooms')
     .update({
       state: updatedState,
       status: 'ANSWERING',
       version: updatedState.version,
+      updated_at: new Date().toISOString(),
     })
-    .eq('room_code', cleanCode);
+    .eq('room_code', cleanCode)
+    .select()
+    .single();
 
   if (updateErr) {
     return { success: false, claimedBy: '', error: updateErr.message };
+  }
+
+  if (updatedRecord) {
+    broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
   }
 
   return { success: true, claimedBy: playerId };
@@ -592,17 +688,78 @@ export async function updateLobbyPlayersInSupabase(
   if (!supabase) return;
 
   const cleanCode = roomCode.trim().toUpperCase();
-  await supabase
+  const { data: updatedRecord, error } = await supabase
     .from('rooms')
     .update({
       players: updatedPlayers,
       ...(nextStatus ? { status: nextStatus } : {}),
+      updated_at: new Date().toISOString(),
     })
-    .eq('room_code', cleanCode);
+    .eq('room_code', cleanCode)
+    .select()
+    .single();
+
+  if (!error && updatedRecord) {
+    broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
+  }
+}
+
+/**
+ * Removes a player from the room in Supabase (when leaving lobby or disconnecting).
+ */
+export async function leaveRoomInSupabase(roomCode: string, playerId: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const cleanCode = roomCode.trim().toUpperCase();
+  try {
+    const { data: room } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('room_code', cleanCode)
+      .maybeSingle();
+
+    if (!room) return;
+
+    const remainingPlayers = (room.players || []).filter((p: RoomPlayer) => p.id !== playerId);
+
+    if (remainingPlayers.length === 0) {
+      await supabase.from('rooms').delete().eq('room_code', cleanCode);
+      return;
+    }
+
+    let nextHostId = room.host_id;
+    if (room.host_id === playerId) {
+      const firstHuman = remainingPlayers.find((p: RoomPlayer) => !p.isBot);
+      if (firstHuman) {
+        firstHuman.isHost = true;
+        firstHuman.isReady = true;
+        nextHostId = firstHuman.id;
+      }
+    }
+
+    const { data: updatedRecord } = await supabase
+      .from('rooms')
+      .update({
+        players: remainingPlayers,
+        host_id: nextHostId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('room_code', cleanCode)
+      .select()
+      .single();
+
+    if (updatedRecord) {
+      broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
+    }
+  } catch (err) {
+    console.error('Failed to leave room in Supabase:', err);
+  }
 }
 
 /**
  * Subscribes to Supabase Realtime channel for instant room synchronization.
+ * Combines WebSockets Broadcast + Postgres Changes + Active Polling Fallback.
  */
 export function subscribeToSupabaseRoom(
   roomCode: string,
@@ -612,32 +769,100 @@ export function subscribeToSupabaseRoom(
   if (!supabase) return () => {};
 
   const cleanCode = roomCode.trim().toUpperCase();
-  const channelName = `room:${cleanCode}`;
+  const channel = getOrCreateRoomChannel(cleanCode);
+  if (!channel) return () => {};
 
-  const channel: RealtimeChannel = supabase
-    .channel(channelName)
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'rooms',
-        filter: `room_code=eq.${cleanCode}`,
-      },
-      (payload) => {
-        if (payload.new) {
-          onRoomUpdate(payload.new as RoomRecord);
-        }
+  let lastSeenVersion = -1;
+  let lastSeenStatus = '';
+  let lastSeenPlayersJson = '';
+
+  const processUpdate = (record: RoomRecord) => {
+    if (!record) return;
+    const v = record.version ?? record.state?.version ?? 0;
+    const status = record.status || '';
+    const playersJson = JSON.stringify(record.players || []);
+
+    if (
+      v > lastSeenVersion ||
+      status !== lastSeenStatus ||
+      playersJson !== lastSeenPlayersJson
+    ) {
+      lastSeenVersion = Math.max(lastSeenVersion, v);
+      lastSeenStatus = status;
+      lastSeenPlayersJson = playersJson;
+      onRoomUpdate(record);
+    }
+  };
+
+  // 1. Broadcast channel listener (instant peer-to-peer over websockets)
+  channel.on('broadcast', { event: 'room_record_update' }, (payload) => {
+    if (payload?.payload) {
+      processUpdate(payload.payload as RoomRecord);
+    }
+  });
+
+  // 2. Postgres changes listener (if database publication is active)
+  channel.on(
+    'postgres_changes',
+    {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'rooms',
+      filter: `room_code=eq.${cleanCode}`,
+    },
+    (payload) => {
+      if (payload.new) {
+        processUpdate(payload.new as RoomRecord);
       }
-    )
-    .subscribe((status) => {
+    }
+  );
+
+  // Subscribe channel if not yet subscribed
+  if (channel.state !== 'joined') {
+    channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         console.log(`📡 Realtime connected to Supabase room [${cleanCode}]`);
       }
     });
+  }
 
-  // Return unsubscribe function
+  // 3. Resilient Polling Fallback (every 1.2s to guarantee zero desync)
+  let isPolling = false;
+  const pollInterval = setInterval(async () => {
+    if (isPolling) return;
+    isPolling = true;
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('room_code', cleanCode)
+        .maybeSingle();
+
+      if (!error && data) {
+        processUpdate(data as RoomRecord);
+      }
+    } catch (e) {
+      // ignore transient poll errors
+    } finally {
+      isPolling = false;
+    }
+  }, 1200);
+
+  // Immediately poll once to ensure freshest state on connect
+  supabase
+    .from('rooms')
+    .select('*')
+    .eq('room_code', cleanCode)
+    .maybeSingle()
+    .then(({ data }) => {
+      if (data) processUpdate(data as RoomRecord);
+    });
+
+  // Cleanup function
   return () => {
+    clearInterval(pollInterval);
+    channel.unsubscribe();
     supabase.removeChannel(channel);
+    _roomChannels.delete(cleanCode);
   };
 }

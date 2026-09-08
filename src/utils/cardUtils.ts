@@ -142,23 +142,39 @@ export function checkAnswerMath(
     })
     .replace(/\s+/g, '');
 
-  // Check fraction e.g. "1/2" or "8/4"
+  // Check fraction e.g. "1/2", "8/4", "pi/2", "π/4"
   if (cleaned.includes('/')) {
     const parts = cleaned.split('/');
     if (parts.length === 2) {
-      const numPart = parseFloat(parts[0].replace(/[^\d.-]/g, ''));
-      const denPart = parseFloat(parts[1].replace(/[^\d.-]/g, ''));
+      let numPart = 0;
+      const rawNum = parts[0];
+      if (rawNum.includes('pi') || rawNum.includes('π')) {
+        const factor = parseFloat(rawNum.replace(/(pi|π|[^\d.-])/gi, ''));
+        numPart = (isNaN(factor) ? 1 : factor) * Math.PI;
+      } else {
+        numPart = parseFloat(rawNum.replace(/[^\d.-]/g, ''));
+      }
+
+      let denPart = 0;
+      const rawDen = parts[1];
+      if (rawDen.includes('pi') || rawDen.includes('π')) {
+        const factor = parseFloat(rawDen.replace(/(pi|π|[^\d.-])/gi, ''));
+        denPart = (isNaN(factor) ? 1 : factor) * Math.PI;
+      } else {
+        denPart = parseFloat(rawDen.replace(/[^\d.-]/g, ''));
+      }
+
       if (!isNaN(numPart) && !isNaN(denPart) && denPart !== 0) {
         const val = numPart / denPart;
-        if (Math.abs(val - numericExpected) < 0.05) return true;
+        if (Math.abs(val - numericExpected) < 0.08) return true;
       }
     }
   }
 
-  // Check pi expressions e.g. "4pi", "4*pi", "4 π"
+  // Check pi expressions e.g. "4pi", "4*pi", "4 π", "0.5pi"
   if (cleaned.includes('pi') || cleaned.includes('π')) {
-    const numPart = parseFloat(cleaned.replace(/(pi|π|[^\d.-])/gi, '')) || 1;
-    const piVal = numPart * Math.PI;
+    const numPart = parseFloat(cleaned.replace(/(pi|π|[^\d.-])/gi, ''));
+    const piVal = (isNaN(numPart) ? 1 : numPart) * Math.PI;
     if (Math.abs(piVal - numericExpected) < 0.1) return true;
   }
 

@@ -69,6 +69,18 @@ export interface DrawnCardChoice {
   playerId: string;
 }
 
+export interface EquationResultState {
+  correct: boolean;
+  answeringPlayerId?: string;
+  answeredPlayerId?: string;
+  submittedAnswer?: string;
+  submittedText?: string;
+  steps?: string[];
+  correctAnswerDisplay?: string;
+  pendingFreeDiscardPlayerId?: string | null;
+  solution?: any;
+}
+
 export interface EquationActiveState {
   equation: EquationCard;
   currentBlankIndex: number;
@@ -79,17 +91,7 @@ export interface EquationActiveState {
   allFilled: boolean;
   claimedByPlayerId: string | null;
   disqualifiedPlayerIds: string[]; // players who answered wrongly
-  resultState?: {
-    correct: boolean;
-    answeringPlayerId?: string;
-    answeredPlayerId?: string;
-    submittedAnswer?: string;
-    submittedText?: string;
-    steps?: string[];
-    correctAnswerDisplay?: string;
-    pendingFreeDiscardPlayerId?: string | null;
-    solution?: any;
-  } | null;
+  resultState?: EquationResultState | null;
 }
 
 export interface GameLogEntry {
@@ -159,6 +161,8 @@ export interface GameState {
   equationDiscardPile: EquationCard[];
   currentEquationState: EquationActiveState | null;
   drawnCardChoice: DrawnCardChoice | null;
+  wildPickerPlayerId?: string | null;
+  wildPickerPlayerName?: string | null;
   gamePhase: GamePhase;
   winner: Player | null;
   turnsCount: number;

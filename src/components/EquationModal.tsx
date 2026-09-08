@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardColor, EquationActiveState, Player } from '../types/game';
 import { CardView } from './CardView';
-import { checkAnswerMath, getColorBg, getColorBorder, getColorText } from '../utils/cardUtils';
+import { getColorBg, getColorBorder, getColorText } from '../utils/cardUtils';
+import {
+  Atom,
+  Zap,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
+  Calculator,
+  CornerDownLeft,
+  ArrowRight,
+  AlertCircle,
+} from 'lucide-react';
 
 interface EquationModalProps {
   isOpen: boolean;
@@ -9,6 +21,8 @@ interface EquationModalProps {
   players: Player[];
   mainDeckCount: number;
   localPlayerId?: string;
+  isHost?: boolean;
+  isOnline?: boolean;
   onFillBlank: (blankIndex: number, card: Card, playerId: string) => void;
   onPlayerDrawForColor: (playerId: string, blankIndex: number) => void;
   onSkipPlayerCascading: (blankIndex: number) => void;
@@ -16,6 +30,7 @@ interface EquationModalProps {
   onSubmitAnswer: (playerId: string, answerText: string) => void;
   onFreeDiscardCard: (playerId: string, cardId: string) => void;
   onCloseEquation: () => void;
+  onResetEquationForRetry?: () => void;
 }
 
 export const EquationModal: React.FC<EquationModalProps> = ({
@@ -24,6 +39,8 @@ export const EquationModal: React.FC<EquationModalProps> = ({
   players,
   mainDeckCount,
   localPlayerId,
+  isHost = false,
+  isOnline = false,
   onFillBlank,
   onPlayerDrawForColor,
   onSkipPlayerCascading,
@@ -31,6 +48,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
   onSubmitAnswer,
   onFreeDiscardCard,
   onCloseEquation,
+  onResetEquationForRetry,
 }) => {
   const [answerInput, setAnswerInput] = useState('');
   const [selectedDiscardCardId, setSelectedDiscardCardId] = useState<string | null>(null);
@@ -38,7 +56,6 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
   const { equation, currentBlankIndex, allFilled, claimedByPlayerId, disqualifiedPlayerIds, resultState } = state;
 
-  // Countdown timer based on difficulty: 10s (EASY), 20s (MEDIUM), 30s (HARD)
   const maxTime = equation.difficulty === 'EASY' ? 10 : equation.difficulty === 'MEDIUM' ? 20 : 30;
   const [timeLeft, setTimeLeft] = useState<number>(maxTime);
 
@@ -47,15 +64,13 @@ export const EquationModal: React.FC<EquationModalProps> = ({
     setSelectedDiscardCardId(null);
   }, [state.equation.id, state.claimedByPlayerId]);
 
-  // Reset timer when equation changes or when allFilled triggers
   useEffect(() => {
     if (allFilled && !claimedByPlayerId && !resultState) {
       setTimeLeft(maxTime);
       setIsTimedOut(false);
     }
-  }, [allFilled, state.equation.id]);
+  }, [allFilled, state.equation.id, claimedByPlayerId, resultState, maxTime]);
 
-  // Countdown interval when waiting for someone to buzz in
   useEffect(() => {
     if (!allFilled || claimedByPlayerId || resultState || isTimedOut) return;
 
@@ -64,10 +79,12 @@ export const EquationModal: React.FC<EquationModalProps> = ({
         if (prev <= 1) {
           clearInterval(interval);
           setIsTimedOut(true);
-          // Auto close/discard equation after timeout
-          setTimeout(() => {
-            onCloseEquation();
-          }, 1800);
+          // In online rooms, only Host triggers closing to avoid multi-client duplicate state transitions
+          if (!isOnline || isHost) {
+            setTimeout(() => {
+              onCloseEquation();
+            }, 1800);
+          }
           return 0;
         }
         return prev - 1;
@@ -75,15 +92,12 @@ export const EquationModal: React.FC<EquationModalProps> = ({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [allFilled, claimedByPlayerId, resultState, isTimedOut, onCloseEquation]);
+  }, [allFilled, claimedByPlayerId, resultState, isTimedOut, onCloseEquation, isOnline, isHost]);
 
   if (!isOpen) return null;
   const currentBlank = equation.blanks[currentBlankIndex];
-
-  // Assigned player for the active blank
   const assignedPlayer = players.find((p) => p.id === state.assignedPlayerId);
 
-  // Available number cards in assigned player's hand that match required color
   const matchingNumberCards = assignedPlayer
     ? assignedPlayer.hand.filter(
         (c) => c.type === 'NUMBER' && c.color === currentBlank?.color
@@ -92,7 +106,6 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
   const claimingPlayer = players.find((p) => p.id === claimedByPlayerId);
 
-  // Helper to append symbol to input
   const appendSymbol = (sym: string) => {
     setAnswerInput((prev) => prev + sym);
   };
@@ -111,60 +124,74 @@ export const EquationModal: React.FC<EquationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-xl p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200 select-none">
       <div className="relative w-full max-w-2xl glass-panel-elevated border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[95vh]">
-        {/* Glowing Top Bar */}
+        {/* Holographic Glowing Top Edge */}
         <div className="h-1.5 bg-gradient-to-r from-rose-500 via-cyan-400 to-emerald-400" />
 
         {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 bg-slate-900/60 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-xl sm:text-2xl text-indigo-400 font-black drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">∿</span>
-            <div>
+        <div className="p-4 sm:p-5 border-b border-white/10 bg-slate-900/70 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 shadow-lg shadow-cyan-500/30">
+              <Atom className="w-5 h-5 text-white animate-spin [animation-duration:14s]" />
+            </div>
+
+            <div className="text-left">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-black text-white tracking-wide">
+                <h2 className="text-base sm:text-lg font-black text-white tracking-wide">
                   EQUATION CHALLENGE
                 </h2>
                 <span
-                  className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${getDifficultyBadge(
+                  className={`text-[10px] font-black font-mono uppercase px-2.5 py-0.5 rounded-full border ${getDifficultyBadge(
                     equation.difficulty
                   )}`}
                 >
                   {equation.difficulty} • {equation.code}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 font-medium">{equation.title}</p>
+              <p className="text-xs text-slate-300 font-medium">{equation.title}</p>
             </div>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-cyan-300 font-mono font-bold bg-cyan-950/60 px-3 py-1 rounded-full border border-cyan-400/30">
+            <Calculator className="w-3.5 h-3.5" />
+            <span>SHM LAB</span>
           </div>
         </div>
 
-        {/* Modal Body */}
+        {/* Modal Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5">
           {/* Main Equation Formula Card */}
-          <div className="p-4 sm:p-5 bg-gradient-to-br from-slate-950/90 to-slate-900/80 border border-white/10 rounded-2xl text-center shadow-inner relative backdrop-blur-md">
-            <div className="text-xs font-mono tracking-widest text-slate-400 uppercase mb-1 font-semibold">
-              สูตรหลัก (PHYSICS FORMULA)
-            </div>
-            <div className="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-amber-200 font-mono my-1.5 tracking-wider drop-shadow-sm">
-              {equation.formula}
-            </div>
-            <div className="text-sm font-medium text-indigo-300 mt-1">
-              {equation.promptText}
+          <div className="p-5 bg-gradient-to-br from-slate-950/90 via-slate-900/90 to-indigo-950/50 border border-white/15 rounded-3xl text-center shadow-inner relative backdrop-blur-xl space-y-2">
+            <div className="text-[11px] font-mono tracking-widest text-cyan-300 uppercase font-bold flex items-center justify-center gap-1.5">
+              <span>∿</span>
+              <span>สูตรฟิสิกส์หลัก (PHYSICS FORMULA)</span>
+              <span>∿</span>
             </div>
 
-            {/* Target Display */}
-            <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1 bg-indigo-950/80 border border-indigo-400/40 rounded-full text-xs text-indigo-200 shadow-sm">
-              <span className="font-medium">เป้าหมายคำนวณ:</span>
-              <span className="font-extrabold text-white">
-                {equation.targetVariable} = ? ({equation.targetUnit})
-              </span>
+            <div className="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-amber-200 font-mono tracking-wider drop-shadow-md py-1">
+              {equation.formula}
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-200 font-medium max-w-lg mx-auto">
+              {equation.promptText}
+            </p>
+
+            {/* Target Variable Display */}
+            <div className="pt-2 flex justify-center">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-950/80 border border-indigo-400/40 rounded-full text-xs text-indigo-200 shadow-sm font-mono">
+                <span className="font-semibold text-slate-400">เป้าหมายคำนวณ:</span>
+                <span className="font-black text-white text-sm">
+                  {equation.targetVariable} = ? ({equation.targetUnit})
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Variables & Blanks List */}
-          <div className="space-y-3">
-            <div className="text-xs font-mono font-semibold tracking-wider text-slate-400 uppercase">
-              ตัวแปรและช่องว่าง (EQUATION BLANKS):
+          <div className="space-y-3 text-left">
+            <div className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
+              ตัวแปรและช่องว่างที่ต้องใส่ค่า (EQUATION BLANKS):
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -177,14 +204,14 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                     key={b.id}
                     className={`p-3.5 rounded-2xl border transition-all ${
                       isCurrentActive
-                        ? 'border-indigo-400 bg-indigo-950/50 shadow-xl shadow-indigo-500/25 ring-1 ring-indigo-400/40'
+                        ? 'border-cyan-400 bg-cyan-950/60 shadow-xl shadow-cyan-500/20 ring-2 ring-cyan-400/40'
                         : b.filledValue !== null
                         ? 'border-emerald-500/60 bg-emerald-950/30'
                         : 'border-white/10 bg-slate-950/60'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs mb-2">
-                      <span className="font-bold text-slate-300">
+                      <span className="font-bold text-slate-200">
                         ช่องที่ {idx + 1}: {b.nameTh}
                       </span>
                       <span
@@ -200,15 +227,15 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                     <div className="flex items-center justify-center gap-2 text-base sm:text-lg font-mono py-2 bg-slate-900/90 rounded-xl border border-white/10 shadow-inner">
                       <span className="font-bold text-white">{b.variable} =</span>
                       <div
-                        className={`min-w-[48px] px-3 py-1 rounded-lg text-center font-black border-2 ${
+                        className={`min-w-[52px] px-3.5 py-1 rounded-lg text-center font-black border-2 ${
                           b.filledValue !== null
-                            ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 text-xl'
+                            ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 text-xl shadow-sm'
                             : `${getColorBorder(b.color)} bg-slate-950 text-slate-400 animate-pulse`
                         }`}
                       >
                         {b.filledValue !== null ? b.filledValue : '___'}
                       </div>
-                      <span className="text-slate-400 text-sm font-semibold">{b.unit}</span>
+                      <span className="text-slate-400 text-xs font-semibold">{b.unit}</span>
                     </div>
 
                     {/* Player Assignment Status */}
@@ -225,10 +252,10 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
             {/* Display fixed constants if any */}
             {equation.fixedConstants && (
-              <div className="text-xs text-slate-400 flex gap-4 bg-slate-950/70 p-2.5 rounded-xl border border-white/10">
-                <span className="font-mono text-indigo-300 font-semibold">ค่าคงที่กำหนดให้:</span>
+              <div className="text-xs text-slate-300 flex flex-wrap items-center gap-3 bg-slate-950/70 p-3 rounded-2xl border border-white/10 font-mono">
+                <span className="text-cyan-300 font-bold">ค่าคงที่กำหนดให้:</span>
                 {Object.entries(equation.fixedConstants).map(([k, v]) => (
-                  <span key={k} className="font-bold text-white">
+                  <span key={k} className="font-bold text-white bg-slate-900 px-2.5 py-0.5 rounded-lg border border-white/10">
                     {k} = {v}
                   </span>
                 ))}
@@ -238,18 +265,18 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
           {/* PHASE 1: FILLING BLANKS */}
           {!allFilled && currentBlank && assignedPlayer && (
-            <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-400/40 space-y-3.5 shadow-lg">
+            <div className="p-4 sm:p-5 rounded-3xl bg-indigo-950/50 border border-indigo-400/40 space-y-4 shadow-xl text-left">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-mono text-indigo-300 tracking-wider uppercase font-semibold">
-                    ตาของผู้เล่นที่ต้องเติมค่า (PLAYER ASSIGNMENT):
+                  <span className="text-xs font-mono text-cyan-300 tracking-wider uppercase font-bold">
+                    ตาของผู้เล่นที่ต้องเติมค่า (PLAYER TURN):
                   </span>
                   <div className="text-base sm:text-lg font-black text-white flex items-center gap-2 mt-0.5">
-                    <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-mono shadow-sm">
+                    <span className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white flex items-center justify-center text-xs font-mono font-black shadow-md">
                       {assignedPlayer.letter}
                     </span>
                     <span>{assignedPlayer.name}</span>
-                    <span className="text-xs text-slate-400 font-normal">
+                    <span className="text-xs text-slate-300 font-normal">
                       (ต้องใช้ Number Card สี {currentBlank.color})
                     </span>
                   </div>
@@ -258,80 +285,110 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
               {/* Status Message from cascade */}
               {state.statusMessage && (
-                <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-xs text-amber-200 flex items-center gap-2">
-                  <span>⚠️</span>
+                <div className="p-3 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-xs text-amber-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
                   <span>{state.statusMessage}</span>
                 </div>
               )}
 
-              {/* Case 1: Player has matching cards */}
-              {matchingNumberCards.length > 0 ? (
-                <div>
-                  <p className="text-xs text-slate-300 mb-2">
-                    เลือก Number Card สี{' '}
-                    <span className={`font-bold ${getColorText(currentBlank.color)}`}>
-                      {currentBlank.color}
-                    </span>{' '}
-                    จากมือของ {assignedPlayer.name} เพื่อเติมค่าลงในช่อง:
-                  </p>
-                  <div className="flex flex-wrap gap-2.5 items-center">
-                    {matchingNumberCards.map((card) => (
+              {/* Case 1 & 2: Check if this is the active player's turn to fill the blank */}
+              {(() => {
+                const isMyBlankTurn =
+                  !isOnline ||
+                  (assignedPlayer && assignedPlayer.id === localPlayerId) ||
+                  (assignedPlayer?.isBot && isHost);
+
+                if (!isMyBlankTurn) {
+                  return (
+                    <div className="p-4 rounded-2xl bg-slate-900/80 border border-cyan-500/20 text-center space-y-2">
+                      <div className="text-sm font-bold text-cyan-300 animate-pulse flex items-center justify-center gap-2">
+                        <Atom className="w-4 h-4 animate-spin text-cyan-400" />
+                        <span>กำลังรอ Player {assignedPlayer?.letter} ({assignedPlayer?.name}) เติมค่า...</span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        ผู้เล่นต้องนำ Number Card สี{' '}
+                        <span className={`font-bold ${getColorText(currentBlank.color)}`}>
+                          {currentBlank.color}
+                        </span>{' '}
+                        มาเติมค่าในช่องนี้
+                      </p>
+                    </div>
+                  );
+                }
+
+                if (matchingNumberCards.length > 0) {
+                  return (
+                    <div>
+                      <p className="text-xs text-slate-300 mb-2.5">
+                        เลือก Number Card สี{' '}
+                        <span className={`font-bold ${getColorText(currentBlank.color)}`}>
+                          {currentBlank.color}
+                        </span>{' '}
+                        จากมือของ {assignedPlayer.name} เพื่อเติมค่าลงในช่อง:
+                      </p>
+                      <div className="flex flex-wrap gap-3 items-center">
+                        {matchingNumberCards.map((card) => (
+                          <button
+                            key={card.id}
+                            onClick={() => onFillBlank(currentBlankIndex, card, assignedPlayer.id)}
+                            className="group transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                          >
+                            <CardView card={card} size="sm" isPlayable={true} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs sm:text-sm">
+                      ❌ <strong>{assignedPlayer.name} ไม่มีไพ่ตัวเลขสี {currentBlank.color} ในมือ!</strong>
+                      <br />
+                      กรุณาเลือกจั่วไพ่ 1 ใบเพื่อลุ้นหาการ์ดสีที่ต้องการ หรือส่งต่อให้ผู้เล่นคนถัดไป
+                    </div>
+
+                    <div className="flex flex-wrap gap-2.5">
                       <button
-                        key={card.id}
-                        onClick={() => onFillBlank(currentBlankIndex, card, assignedPlayer.id)}
-                        className="group transition-transform hover:scale-105 active:scale-95"
+                        onClick={() => onPlayerDrawForColor(assignedPlayer.id, currentBlankIndex)}
+                        className="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-cyan-950/40 transition-transform hover:scale-105 flex items-center gap-2 cursor-pointer"
                       >
-                        <CardView card={card} size="sm" isPlayable={true} />
+                        <Sparkles className="w-4 h-4" />
+                        <span>จั่วไพ่ 1 ใบ ({assignedPlayer.name})</span>
+                        <span className="text-xs opacity-80">(เหลือในกอง {mainDeckCount})</span>
                       </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                /* Case 2: Player has NO matching cards */
-                <div className="space-y-3">
-                  <div className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/50 text-rose-300 text-xs sm:text-sm">
-                    ❌ <strong>PLAYER {assignedPlayer.letter} DOES NOT HAVE THE REQUIRED COLOR!</strong>
-                    <br />
-                    ผู้เล่นไม่มีไพ่ Number Card สี {currentBlank.color} ในมือ
-                  </div>
 
-                  <div className="flex flex-wrap gap-2.5">
-                    <button
-                      onClick={() => onPlayerDrawForColor(assignedPlayer.id, currentBlankIndex)}
-                      className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-cyan-950/40 transition-transform hover:scale-105 flex items-center gap-2"
-                    >
-                      <span>🎴 จั่วไพ่ 1 ใบ ({assignedPlayer.name})</span>
-                      <span className="text-xs opacity-75">
-                        (เหลือในกอง {mainDeckCount})
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => onSkipPlayerCascading(currentBlankIndex)}
-                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs sm:text-sm rounded-xl border border-white/10 transition-colors"
-                    >
-                      ส่งต่อให้ผู้เล่นถัดไป ⏭
-                    </button>
+                      <button
+                        onClick={() => onSkipPlayerCascading(currentBlankIndex)}
+                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs sm:text-sm rounded-xl border border-white/10 transition-colors cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>ส่งต่อให้ผู้เล่นถัดไป</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
           {/* PHASE 2: ALL BLANKS FILLED -> BUZZER / ANSWERING */}
           {allFilled && !resultState && (
-            <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-br from-indigo-950/80 to-slate-900 border-2 border-indigo-400/80 text-center space-y-4 shadow-2xl backdrop-blur-md">
+            <div className="p-5 sm:p-7 rounded-3xl bg-gradient-to-br from-indigo-950/90 via-slate-900 to-slate-950 border-2 border-indigo-400/80 text-center space-y-4 shadow-2xl backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-emerald-400 tracking-widest uppercase">
-                  ✓ ช่องว่างทั้งหมดถูกเติมแล้ว!
+                <span className="text-xs font-mono font-bold text-emerald-400 tracking-widest uppercase flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>เติมตัวแปรครบถ้วนแล้ว!</span>
                 </span>
-                {/* Countdown Timer Display */}
+
+                {/* Countdown Timer */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-slate-300">
                     ความยาก {equation.difficulty} ({maxTime}s)
                   </span>
                   <span
-                    className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-full border ${
+                    className={`font-mono font-black text-sm px-3 py-0.5 rounded-full border ${
                       timeLeft <= 5
                         ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-ping'
                         : timeLeft <= 10
@@ -344,7 +401,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                 </div>
               </div>
 
-              {/* Countdown Progress Bar */}
+              {/* Progress bar */}
               <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-1000 ${
@@ -356,280 +413,345 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
               {isTimedOut ? (
                 <div className="p-4 rounded-2xl bg-rose-950/80 border border-rose-500/70 text-rose-200 space-y-1 animate-pulse">
-                  <div className="text-lg font-black">⏱️ หมดเวลาตอบโจทย์ SHM!</div>
+                  <div className="text-lg font-black flex items-center justify-center gap-2">
+                    <Clock className="w-5 h-5 text-rose-400" />
+                    <span>หมดเวลาตอบโจทย์ SHM!</span>
+                  </div>
                   <div className="text-xs text-rose-300">
-                    ไม่มีผู้เล่นตอบได้ทันเวลา กำลังทิ้งการ์ดโจทย์ใบนี้และเล่นต่อตามปกติ...
+                    ไม่มีผู้เล่นตอบได้ทันเวลา กำลังข้ามโจทย์และเล่นต่อตามปกติ...
                   </div>
                 </div>
               ) : (
                 <>
-                  <h3 className="text-xl sm:text-2xl font-black text-white">
+                  <h3 className="text-lg sm:text-2xl font-black text-white">
                     ใครรู้คำตอบ แย่งกันกดปุ่มเพื่อตอบโจทย์!
                   </h3>
 
                   {!claimedByPlayerId ? (
-                    /* Buzzer Buttons */
                     <div className="space-y-3">
-                  {localPlayerId ? (
-                    /* Online Multiplayer: Buzz directly for local player */
-                    <button
-                      disabled={disqualifiedPlayerIds.includes(localPlayerId)}
-                      onClick={() => {
-                        if (!disqualifiedPlayerIds.includes(localPlayerId)) {
-                          onClaimAnswer(localPlayerId);
-                        }
-                      }}
-                      className={`w-full py-4 px-6 font-black text-lg sm:text-2xl rounded-2xl shadow-xl tracking-wider transition-all border border-white/30 ${
-                        disqualifiedPlayerIds.includes(localPlayerId)
-                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed line-through'
-                          : 'bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 text-white shadow-rose-500/30 transform hover:scale-[1.02] active:scale-95 animate-pulse'
-                      }`}
-                    >
-                      {disqualifiedPlayerIds.includes(localPlayerId)
-                        ? '❌ คุณตอบผิดไปแล้วในโจทย์นี้ (หมดสิทธิ์แย่งตอบ)'
-                        : '⚡ THE ANSWER IS! (แย่งตอบ) ⚡'}
-                    </button>
-                  ) : (
-                    /* Singleplayer / Pass & Play */
-                    <>
-                      <button
-                        onClick={() => {
-                          const eligible = players.find((p) => !disqualifiedPlayerIds.includes(p.id));
-                          if (eligible) onClaimAnswer(eligible.id);
-                        }}
-                        className="w-full py-4 px-6 bg-gradient-to-r from-amber-500 via-rose-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 text-white font-black text-lg sm:text-2xl rounded-2xl shadow-xl shadow-rose-500/30 transform hover:scale-[1.02] active:scale-95 transition-all tracking-wider animate-pulse border border-white/30"
-                      >
-                        ⚡ THE ANSWER IS! ⚡
-                      </button>
-
-                      <div className="text-xs text-slate-400 font-medium">
-                        หรือเลือกผู้เล่นที่ต้องการแย่งตอบ (Pass & Play):
-                      </div>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {players.map((p) => {
-                          const isDisq = disqualifiedPlayerIds.includes(p.id);
-                          return (
-                            <button
-                              key={p.id}
-                              disabled={isDisq}
-                              onClick={() => onClaimAnswer(p.id)}
-                              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-transform ${
-                                isDisq
-                                  ? 'bg-slate-800 text-slate-500 line-through cursor-not-allowed border border-white/5'
-                                  : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:scale-105 shadow-md shadow-indigo-600/30'
-                              }`}
-                            >
-                              Player {p.letter} ({p.name}) {isDisq ? '❌' : '⚡'}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                /* Answering Input Box */
-                <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-indigo-400/50 space-y-3.5 text-left">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-400">
-                      ⚡ PLAYER {claimingPlayer?.letter} ({claimingPlayer?.name}) ได้สิทธิ์ตอบก่อน!
-                      {localPlayerId && claimingPlayer?.id === localPlayerId && ' (ตาคุณพิมพ์คำตอบ!)'}
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono font-semibold">
-                      หน่วย: {equation.targetUnit}
-                    </span>
-                  </div>
-
-                  {localPlayerId && claimingPlayer?.id !== localPlayerId ? (
-                    <div className="p-4 rounded-xl bg-slate-900 border border-white/10 text-center space-y-1.5">
-                      <div className="text-sm font-bold text-cyan-300 animate-pulse">
-                        ⏳ กำลังรอ {claimingPlayer?.name} คำนวณและพิมพ์คำตอบ...
-                      </div>
-                      <p className="text-xs text-slate-400">
-                        หาก {claimingPlayer?.name} ตอบผิด จะเปิดโอกาสให้ผู้เล่นอื่นแย่งตอบรอบถัดไป!
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col sm:flex-row gap-2.5">
-                      <input
-                        type="text"
-                        value={answerInput}
-                        onChange={(e) => setAnswerInput(e.target.value)}
-                        placeholder={`เช่น 0.5 หรือ 1/2 หรือ 4π`}
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && answerInput.trim() && claimingPlayer) {
-                            onSubmitAnswer(claimingPlayer.id, answerInput.trim());
-                          }
-                        }}
-                        className="flex-1 px-4 py-2.5 bg-slate-900 border border-indigo-400/80 rounded-xl text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      />
-                      <button
-                        disabled={!answerInput.trim()}
-                        onClick={() => {
-                          if (claimingPlayer && answerInput.trim()) {
-                            onSubmitAnswer(claimingPlayer.id, answerInput.trim());
-                          }
-                        }}
-                        className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black rounded-xl text-sm transition-all hover:scale-105 active:scale-95 shadow-lg shadow-emerald-950/40"
-                      >
-                        SUBMIT ANSWER
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Math Helper Buttons */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-slate-400 mr-1 font-semibold">สัญลักษณ์ช่วยพิมพ์:</span>
-                    {['π', '/', '.', '0.5', '1/2', '2', '4', '8', '-'].map((sym) => (
-                      <button
-                        key={sym}
-                        type="button"
-                        onClick={() => appendSymbol(sym)}
-                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded-lg font-mono text-xs border border-white/10 hover:border-white/20 transition-all active:scale-95"
-                      >
-                        {sym}
-                      </button>
-                    ))}
-                  </div>
-
-                  <p className="text-[11px] text-slate-400">
-                    💡 ระบบรองรับจำนวนเต็ม, ทศนิยม, เศษส่วน (เช่น 1/2), ค่า π (เช่น 4π หรือ 4*pi)
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-          {/* PHASE 3: RESULT DISPLAY */}
-          {resultState && (
-            <div
-              className={`p-5 rounded-2xl border-2 space-y-4 ${
-                resultState.correct
-                  ? 'bg-emerald-950/40 border-emerald-500/80 shadow-emerald-500/20'
-                  : 'bg-rose-950/40 border-rose-500/80 shadow-rose-500/20'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">{resultState.correct ? '✅' : '❌'}</span>
-                <div>
-                  <h3
-                    className={`text-xl font-black ${
-                      resultState.correct ? 'text-emerald-300' : 'text-rose-300'
-                    }`}
-                  >
-                    {resultState.correct ? 'CORRECT! ถูกต้อง!' : 'WRONG! คำตอบไม่ถูกต้อง!'}
-                  </h3>
-                  <p className="text-xs text-slate-300 font-medium">
-                    {resultState.correct
-                      ? `ผู้เล่น ${
-                          players.find((p) => p.id === resultState.answeringPlayerId)?.name
-                        } ตอบถูกต้อง! ได้สิทธิ์ทิ้งไพ่ 1 ใบฟรี`
-                      : `ผู้เล่น ${
-                          players.find((p) => p.id === resultState.answeringPlayerId)?.name
-                        } ถูกลงโทษจั่ว 1 ใบ และหมดสิทธิ์ตอบโจทย์นี้`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Step-by-Step Solution */}
-              <div className="p-4 bg-slate-950/80 rounded-2xl border border-white/10 space-y-2 font-mono text-xs sm:text-sm text-slate-200 shadow-inner">
-                <div className="font-bold text-cyan-300 text-xs uppercase tracking-wider mb-1">
-                  วิธีทำอย่างละเอียด (STEP-BY-STEP SOLUTION):
-                </div>
-                {resultState.steps.map((step, idx) => (
-                  <div key={idx} className="flex items-start gap-2 leading-relaxed">
-                    <span className="text-slate-500 font-semibold">[{idx + 1}]</span>
-                    <span>{step}</span>
-                  </div>
-                ))}
-                <div className="pt-2 font-bold text-amber-300 border-t border-white/5 mt-2">
-                  คำตอบที่ถูกต้อง: {resultState.correctAnswerDisplay}
-                </div>
-              </div>
-
-              {/* If Correct -> Select Card to freely discard */}
-              {resultState.correct && resultState.pendingFreeDiscardPlayerId && (
-                <div className="space-y-3 pt-2">
-                  <div className="text-sm font-bold text-amber-300">
-                    🎁 เลือกไพ่ 1 ใบในมือเพื่อทิ้งฟรี (ไม่ต้องสนใจสีหรือตัวเลข):
-                  </div>
-                  {(() => {
-                    const rewardingPlayer = players.find(
-                      (p) => p.id === resultState.pendingFreeDiscardPlayerId
-                    );
-                    if (!rewardingPlayer || rewardingPlayer.hand.length === 0) return null;
-
-                    return (
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2.5 bg-slate-950/60 rounded-2xl border border-white/10">
-                          {rewardingPlayer.hand.map((card) => (
-                            <button
-                              key={card.id}
-                              onClick={() => setSelectedDiscardCardId(card.id)}
-                              className="transition-transform hover:scale-105 active:scale-95"
-                            >
-                              <CardView
-                                card={card}
-                                size="sm"
-                                isSelected={selectedDiscardCardId === card.id}
-                              />
-                            </button>
-                          ))}
-                        </div>
-
+                      {localPlayerId ? (
                         <button
-                          disabled={!selectedDiscardCardId}
+                          disabled={disqualifiedPlayerIds.includes(localPlayerId)}
                           onClick={() => {
-                            if (selectedDiscardCardId) {
-                              onFreeDiscardCard(
-                                rewardingPlayer.id,
-                                selectedDiscardCardId
-                              );
+                            if (!disqualifiedPlayerIds.includes(localPlayerId)) {
+                              onClaimAnswer(localPlayerId);
                             }
                           }}
-                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-sm rounded-xl transition-all shadow-lg hover:scale-[1.01]"
+                          className={`w-full py-4 px-6 font-black text-lg sm:text-2xl rounded-2xl shadow-2xl tracking-wider transition-all border border-white/30 cursor-pointer flex items-center justify-center gap-2 ${
+                            disqualifiedPlayerIds.includes(localPlayerId)
+                              ? 'bg-slate-800 text-slate-500 cursor-not-allowed line-through'
+                              : 'bg-gradient-to-r from-amber-400 via-rose-500 to-cyan-400 hover:from-amber-300 hover:to-cyan-300 text-slate-950 shadow-rose-500/30 transform hover:scale-[1.02] active:scale-95 animate-pulse'
+                          }`}
                         >
-                          ทิ้งไพ่ใบนี้ฟรี & กลับสู่เกมหลัก ✨
+                          <Zap className="w-6 h-6 fill-slate-950" />
+                          <span>THE ANSWER IS! (แย่งตอบ)</span>
                         </button>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              const eligible = players.find((p) => !disqualifiedPlayerIds.includes(p.id));
+                              if (eligible) onClaimAnswer(eligible.id);
+                            }}
+                            className="w-full py-4 px-6 bg-gradient-to-r from-amber-400 via-rose-500 to-cyan-400 hover:from-amber-300 hover:to-cyan-300 text-slate-950 font-black text-lg sm:text-2xl rounded-2xl shadow-2xl shadow-rose-500/30 transform hover:scale-[1.02] active:scale-95 transition-all tracking-wider animate-pulse border border-white/30 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <Zap className="w-6 h-6 fill-slate-950" />
+                            <span>THE ANSWER IS! (แย่งตอบ)</span>
+                          </button>
 
-              {/* If Wrong -> Option for other players to answer or give up */}
-              {!resultState.correct && (
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-                  <span className="text-xs text-slate-400">
-                    {disqualifiedPlayerIds.length >= players.length
-                      ? 'ผู้เล่นทุกคนตอบผิดครบแล้ว'
-                      : 'ผู้เล่นคนอื่นที่ยังไม่ตอบ สามารถแย่งกดตอบใหม่ได้'}
-                  </span>
-                  <div className="flex gap-2">
-                    {disqualifiedPlayerIds.length < players.length && (
-                      <button
-                        onClick={() => {
-                          onClaimAnswer('');
-                        }}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/30 transition-all hover:scale-105"
-                      >
-                        แย่งตอบอีกครั้ง ⚡
-                      </button>
-                    )}
-                    <button
-                      onClick={onCloseEquation}
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl border border-white/10 transition-colors"
-                    >
-                      ข้ามโจทย์และเล่นต่อ ⏩
-                    </button>
-                  </div>
-                </div>
+                          <div className="text-xs text-slate-400 font-medium">
+                            หรือเลือกผู้เล่นที่ต้องการแย่งตอบ:
+                          </div>
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {players.map((p) => {
+                              const isDisq = disqualifiedPlayerIds.includes(p.id);
+                              return (
+                                <button
+                                  key={p.id}
+                                  disabled={isDisq}
+                                  onClick={() => onClaimAnswer(p.id)}
+                                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    isDisq
+                                      ? 'bg-slate-800 text-slate-500 line-through cursor-not-allowed border border-white/5'
+                                      : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:scale-105 shadow-md shadow-indigo-600/30'
+                                  }`}
+                                >
+                                  Player {p.letter} ({p.name}) {isDisq ? '❌' : '⚡'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    /* Answering Input Terminal */
+                    <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/90 border border-indigo-400/50 space-y-3.5 text-left shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+                          <span>
+                            PLAYER {claimingPlayer?.letter} ({claimingPlayer?.name}) ได้สิทธิ์ตอบ!
+                          </span>
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono font-semibold">
+                          หน่วยคำตอบ: {equation.targetUnit}
+                        </span>
+                      </div>
+
+                      {localPlayerId && claimingPlayer?.id !== localPlayerId ? (
+                        <div className="p-5 rounded-2xl bg-slate-900/90 border border-white/10 text-center space-y-2">
+                          <div className="text-sm font-bold text-cyan-300 animate-pulse flex items-center justify-center gap-2">
+                            <Atom className="w-4 h-4 animate-spin" />
+                            <span>กำลังรอ {claimingPlayer?.name} คิดคำนวณและตอบ...</span>
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            หากผู้เล่นตอบผิด ระบบจะเปิดโอกาสให้ผู้เล่นคนอื่นแย่งตอบต่อทันที!
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col sm:flex-row gap-2.5">
+                          <input
+                            type="text"
+                            value={answerInput}
+                            onChange={(e) => setAnswerInput(e.target.value)}
+                            placeholder={`เช่น 0.5 หรือ 1/2 หรือ 4π`}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && answerInput.trim() && claimingPlayer) {
+                                onSubmitAnswer(claimingPlayer.id, answerInput.trim());
+                              }
+                            }}
+                            className="flex-1 px-4 py-3 bg-slate-900 border border-cyan-400/80 rounded-2xl text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 shadow-inner"
+                          />
+                          <button
+                            disabled={!answerInput.trim()}
+                            onClick={() => {
+                              if (claimingPlayer && answerInput.trim()) {
+                                onSubmitAnswer(claimingPlayer.id, answerInput.trim());
+                              }
+                            }}
+                            className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 text-slate-950 font-black rounded-2xl text-sm transition-all hover:scale-105 active:scale-95 shadow-lg shadow-emerald-950/40 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>ส่งคำตอบ</span>
+                            <CornerDownLeft className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Scientific Math Keypad */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[11px] text-slate-400 mr-1 font-semibold">สัญลักษณ์ช่วยพิมพ์:</span>
+                        {['π', '/', '.', '0.5', '1/2', '2', '4', '8', '-'].map((sym) => (
+                          <button
+                            key={sym}
+                            type="button"
+                            onClick={() => appendSymbol(sym)}
+                            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl font-mono text-xs border border-white/10 hover:border-white/20 transition-all active:scale-95 cursor-pointer"
+                          >
+                            {sym}
+                          </button>
+                        ))}
+                      </div>
+
+                      <p className="text-[11px] text-slate-400">
+                        💡 รองรับจำนวนเต็ม, ทศนิยม, เศษส่วน (เช่น 1/2), และค่า π (เช่น 4π หรือ 4*pi)
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
+
+          {/* PHASE 3: RESULT DISPLAY */}
+          {resultState && (() => {
+            const answeringPlayer = players.find(
+              (p) => p.id === (resultState.answeringPlayerId || resultState.answeredPlayerId)
+            );
+            const steps = resultState.steps || resultState.solution?.explanationSteps || [];
+            const displayAnswer =
+              resultState.correctAnswerDisplay ||
+              resultState.solution?.displayAnswer ||
+              (resultState.solution?.numericValue !== undefined ? String(resultState.solution.numericValue) : '');
+
+            return (
+              <div
+                className={`p-5 sm:p-6 rounded-3xl border-2 space-y-4 text-left ${
+                  resultState.correct
+                    ? 'bg-emerald-950/50 border-emerald-400 shadow-2xl shadow-emerald-500/20'
+                    : 'bg-rose-950/50 border-rose-500 shadow-2xl shadow-rose-500/20'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {resultState.correct ? (
+                    <CheckCircle2 className="w-8 h-8 text-emerald-400 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-8 h-8 text-rose-400 flex-shrink-0" />
+                  )}
+
+                  <div>
+                    <h3
+                      className={`text-lg sm:text-xl font-black ${
+                        resultState.correct ? 'text-emerald-300' : 'text-rose-300'
+                      }`}
+                    >
+                      {resultState.correct ? 'CORRECT! คำตอบถูกต้อง!' : 'WRONG! คำตอบยังไม่ถูกต้อง!'}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-200 font-medium">
+                      {resultState.correct
+                        ? `🎉 ผู้เล่น ${answeringPlayer?.name || 'นิรนาม'} ตอบถูกต้อง! ได้รับรางวัลทิ้งไพ่ 1 ใบฟรี`
+                        : `⚠️ ผู้เล่น ${answeringPlayer?.name || 'นิรนาม'} ถูกลงโทษจั่ว 1 ใบ และหมดสิทธิ์ตอบโจทย์นี้`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Detailed Steps */}
+                <div className="p-4 bg-slate-950/90 rounded-2xl border border-white/10 space-y-2 font-mono text-xs sm:text-sm text-slate-200 shadow-inner">
+                  <div className="font-bold text-cyan-300 text-xs uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>วิธีทำและสูตรคำนวณอย่างละเอียด (STEP-BY-STEP SOLUTION):</span>
+                  </div>
+                  {steps.length > 0 ? (
+                    steps.map((step, idx) => (
+                      <div key={idx} className="flex items-start gap-2 leading-relaxed">
+                        <span className="text-cyan-400 font-semibold">[{idx + 1}]</span>
+                        <span>{step}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-400 text-xs italic">คำนวณตามสูตร Simple Harmonic Motion</div>
+                  )}
+                  {displayAnswer && (
+                    <div className="pt-2 font-bold text-amber-300 border-t border-white/10 mt-2 flex items-center gap-2">
+                      <span>คำตอบที่ถูกต้อง:</span>
+                      <span className="text-base text-white">{displayAnswer}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Free Discard Selection */}
+                {resultState.correct && resultState.pendingFreeDiscardPlayerId && (
+                  <div className="space-y-3 pt-2">
+                    <div className="text-sm font-bold text-amber-300 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      <span>เลือกไพ่ 1 ใบในมือเพื่อทิ้งฟรี (ไม่ต้องสนใจสีหรือตัวเลข):</span>
+                    </div>
+                    {(() => {
+                      const rewardingPlayer = players.find(
+                        (p) => p.id === resultState.pendingFreeDiscardPlayerId
+                      );
+                      if (!rewardingPlayer || rewardingPlayer.hand.length === 0) return null;
+
+                      const isMyReward =
+                        !isOnline ||
+                        rewardingPlayer.id === localPlayerId ||
+                        (rewardingPlayer.isBot && isHost);
+
+                      if (!isMyReward) {
+                        return (
+                          <div className="p-4 bg-slate-900/80 rounded-2xl border border-emerald-500/30 text-center space-y-1">
+                            <div className="text-sm font-bold text-emerald-300 animate-pulse">
+                              กำลังรอ {rewardingPlayer.name} เลือกไพ่ในมือ 1 ใบเพื่อทิ้งฟรี...
+                            </div>
+                            <p className="text-xs text-slate-400">
+                              ผู้เล่นได้รับรางวัลทิ้งไพ่ฟรีจากการตอบโจทย์ SHM ถูกต้อง
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2.5 max-h-44 overflow-y-auto p-3 bg-slate-950/70 rounded-2xl border border-white/10">
+                            {rewardingPlayer.hand.map((card) => (
+                              <button
+                                key={card.id}
+                                onClick={() => setSelectedDiscardCardId(card.id)}
+                                className="transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                              >
+                                <CardView
+                                  card={card}
+                                  size="sm"
+                                  isSelected={selectedDiscardCardId === card.id}
+                                />
+                              </button>
+                            ))}
+                          </div>
+
+                          <button
+                            disabled={!selectedDiscardCardId}
+                            onClick={() => {
+                              if (selectedDiscardCardId) {
+                                onFreeDiscardCard(
+                                  rewardingPlayer.id,
+                                  selectedDiscardCardId
+                                );
+                              }
+                            }}
+                            className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 text-slate-950 font-black text-sm rounded-2xl transition-all shadow-xl hover:scale-[1.01] cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span>ทิ้งไพ่ใบนี้ฟรี & กลับสู่โต๊ะเกมหลัก</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Return button if discard already completed */}
+                {resultState.correct && !resultState.pendingFreeDiscardPlayerId && (
+                  <div className="p-3.5 bg-emerald-950/80 rounded-2xl border border-emerald-500/40 text-center space-y-2">
+                    <div className="text-emerald-300 font-bold text-xs sm:text-sm">
+                      🎉 ทิ้งไพ่ฟรีเรียบร้อยแล้ว! กำลังกลับสู่เกมหลัก...
+                    </div>
+                    <button
+                      onClick={onCloseEquation}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition-all hover:scale-105 cursor-pointer"
+                    >
+                      กลับสู่เกมหลักทันที ⏩
+                    </button>
+                  </div>
+                )}
+
+                {/* Wrong answer retry choices */}
+                {!resultState.correct && (
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2">
+                    <span className="text-xs text-slate-400">
+                      {disqualifiedPlayerIds.length >= players.length
+                        ? 'ผู้เล่นทุกคนตอบผิดครบแล้ว กำลังข้ามโจทย์...'
+                        : 'ผู้เล่นคนอื่นที่ยังไม่ตอบ สามารถแย่งกดตอบใหม่ได้'}
+                    </span>
+                    <div className="flex gap-2">
+                      {disqualifiedPlayerIds.length < players.length && (
+                        <button
+                          onClick={() => {
+                            if (onResetEquationForRetry) {
+                              onResetEquationForRetry();
+                            } else {
+                              onClaimAnswer('');
+                            }
+                          }}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 cursor-pointer"
+                        >
+                          แย่งตอบอีกครั้ง ⚡
+                        </button>
+                      )}
+                      {(!isOnline || isHost) && (
+                        <button
+                          onClick={onCloseEquation}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl border border-white/10 transition-colors cursor-pointer"
+                        >
+                          ข้ามโจทย์และเล่นต่อ ⏩
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

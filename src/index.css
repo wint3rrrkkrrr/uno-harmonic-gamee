@@ -2,16 +2,16 @@
 
 @layer base {
   :root {
-    --bg-dark: #090a0f;
-    --bg-surface: #0f131f;
+    --bg-dark: #05070e;
+    --bg-surface: #0a0e1c;
     --border-subtle: rgba(255, 255, 255, 0.08);
   }
 
   body {
-    background-color: #090a0f;
-    color: #f1f5f9;
+    background-color: #05070e;
+    color: #f8fafc;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
     overflow-x: hidden;
   }
 
@@ -20,59 +20,92 @@
   }
 }
 
-/* Glassmorphism Panels */
+/* Premium Quantum Glass Panels */
 .glass-panel {
-  background: rgba(13, 17, 28, 0.78);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(10, 15, 30, 0.85) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .glass-panel-subtle {
   background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .glass-panel-elevated {
-  background: rgba(17, 24, 39, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  background: linear-gradient(145deg, rgba(18, 26, 47, 0.9) 0%, rgba(8, 12, 24, 0.95) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
-/* Card Glow Themes */
+/* Holographic / Physics Card Glow Themes */
 .card-glow-red {
-  box-shadow: 0 8px 25px -4px rgba(244, 63, 94, 0.45);
+  box-shadow: 0 12px 30px -4px rgba(244, 63, 94, 0.5), 0 0 20px rgba(244, 63, 94, 0.2);
 }
 
 .card-glow-blue {
-  box-shadow: 0 8px 25px -4px rgba(6, 182, 212, 0.45);
+  box-shadow: 0 12px 30px -4px rgba(6, 182, 212, 0.5), 0 0 20px rgba(6, 182, 212, 0.2);
 }
 
 .card-glow-green {
-  box-shadow: 0 8px 25px -4px rgba(16, 185, 129, 0.45);
+  box-shadow: 0 12px 30px -4px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
 .card-glow-yellow {
-  box-shadow: 0 8px 25px -4px rgba(245, 158, 11, 0.45);
+  box-shadow: 0 12px 30px -4px rgba(245, 158, 11, 0.5), 0 0 20px rgba(245, 158, 11, 0.2);
 }
 
 .card-glow-wild {
-  box-shadow: 0 8px 25px -4px rgba(168, 85, 247, 0.45);
+  box-shadow: 0 12px 32px -4px rgba(168, 85, 247, 0.55), 0 0 24px rgba(236, 72, 153, 0.25);
 }
 
-/* Subtle Animated Grid Background Pattern */
+/* Table Arena Ambient Mat */
+.physics-table-arena {
+  background: radial-gradient(ellipse at center, rgba(14, 28, 56, 0.75) 0%, rgba(9, 16, 33, 0.85) 50%, rgba(5, 7, 15, 0.95) 100%);
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9), 0 0 80px rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+/* Subtle Animated Grid & Star Dust Pattern */
 .bg-physics-grid {
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 50% 10%, rgba(56, 189, 248, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 10% 80%, rgba(244, 63, 94, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 45%),
     linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+}
+
+/* Card 3D Depth */
+.card-perspective {
+  perspective: 1000px;
+}
+
+/* Shimmer animations */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Custom Sleek Scrollbar */
@@ -82,15 +115,15 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(10, 15, 30, 0.6);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.4);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.7);
 }
