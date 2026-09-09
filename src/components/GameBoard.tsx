@@ -17,6 +17,7 @@ import {
   Radio,
   Trophy,
   Skull,
+  GraduationCap,
 } from 'lucide-react';
 
 interface GameBoardProps {
@@ -28,6 +29,7 @@ interface GameBoardProps {
   onCatchHarmonic: (targetPlayerId: string) => void;
   onPlayDrawnCardChoice: (play: boolean) => void;
   onOpenHowToPlay: () => void;
+  onOpenTutorial?: () => void;
   onSaveGame: () => void;
   onResetGame: () => void;
   isOnlineMode?: boolean;
@@ -42,6 +44,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onCatchHarmonic,
   onPlayDrawnCardChoice,
   onOpenHowToPlay,
+  onOpenTutorial,
   onResetGame,
   isOnlineMode = false,
 }) => {
@@ -184,6 +187,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {onOpenTutorial && (
+            <button
+              onClick={onOpenTutorial}
+              title="เปิดโหมดสอนเล่น (Interactive Tutorial)"
+              className="px-3 py-1.5 bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 text-xs font-bold rounded-xl border border-emerald-500/40 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">สอนเล่น</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenHowToPlay}
             title="เปิดอ่านกติกาการเล่น"
@@ -338,13 +352,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 )}`}
               >
                 {currentColor === 'RED'
-                  ? 'แดง (A — แอมพลิจูด)'
+                  ? 'แดง (RED)'
                   : currentColor === 'BLUE'
-                  ? 'น้ำเงิน (ω — ความถี่เชิงมุม)'
+                  ? 'น้ำเงิน (BLUE)'
                   : currentColor === 'GREEN'
-                  ? 'เขียว (k — ค่าคงที่สปริง)'
+                  ? 'เขียว (GREEN)'
                   : currentColor === 'YELLOW'
-                  ? 'เหลือง (m — มวล)'
+                  ? 'เหลือง (YELLOW)'
                   : currentColor}
               </span>
             </div>
@@ -463,24 +477,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               <Sparkles className="w-3.5 h-3.5" />
               <span>∿ HARMONIC!</span>
             </motion.button>
-          </div>
-
-          {/* Quick Color Variable Reference Bar */}
-          <div className="flex items-center justify-between overflow-x-auto gap-1.5 py-1 px-1 mb-1 text-[10px] sm:text-[11px] font-mono scrollbar-none">
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
-              <span className="px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/50 text-rose-200 whitespace-nowrap shadow-sm">
-                🔴 แดง = Amplitude (A) — แอมพลิจูด
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/50 text-cyan-200 whitespace-nowrap shadow-sm">
-                🔵 น้ำเงิน = Angular Frequency (ω) — ความถี่เชิงมุม
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 whitespace-nowrap shadow-sm">
-                🟢 เขียว = Spring Constant (k) — ค่าคงที่สปริง
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-200 whitespace-nowrap shadow-sm">
-                🟡 เหลือง = Mass (m) — มวล
-              </span>
-            </div>
           </div>
 
           {/* Cards Horizontal Carousel */}

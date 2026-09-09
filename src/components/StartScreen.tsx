@@ -15,6 +15,7 @@ import {
   Zap,
   Trophy,
   Skull,
+  GraduationCap,
 } from 'lucide-react';
 
 interface StartScreenProps {
@@ -25,6 +26,7 @@ interface StartScreenProps {
   onOpenOnlineLobby: () => void;
   onOpenHowToPlay: () => void;
   onOpenAbout: () => void;
+  onOpenTutorial: () => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({
@@ -32,6 +34,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   onOpenOnlineLobby,
   onOpenHowToPlay,
   onOpenAbout,
+  onOpenTutorial,
 }) => {
   const [view, setView] = useState<'HOME' | 'SETUP'>('HOME');
   const [playerCount, setPlayerCount] = useState<number>(4);
@@ -202,14 +205,22 @@ export const StartScreen: React.FC<StartScreenProps> = ({
               </motion.div>
             </div>
 
-            {/* Quick Navigation: Rules & Formulas */}
-            <div className="w-full flex items-center justify-center gap-3 pt-1">
+            {/* Quick Navigation: Tutorial, Rules & Formulas */}
+            <div className="w-full flex flex-wrap items-center justify-center gap-2.5 pt-1">
+              <button
+                onClick={onOpenTutorial}
+                className="py-2.5 px-4 bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 hover:from-emerald-500/50 hover:to-cyan-500/50 text-emerald-200 hover:text-white font-black rounded-2xl text-xs border border-emerald-400/50 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/40 animate-pulse hover:animate-none"
+              >
+                <GraduationCap className="w-4 h-4 text-emerald-300" />
+                <span>โหมดสอนเล่น (Interactive Tutorial)</span>
+              </button>
+
               <button
                 onClick={onOpenHowToPlay}
                 className="py-2.5 px-4 glass-panel-subtle hover:bg-slate-800 text-slate-300 hover:text-white font-bold rounded-2xl text-xs border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 cursor-pointer shadow-md"
               >
                 <BookOpen className="w-4 h-4 text-cyan-400" />
-                <span>กติกาการเล่น & สัญลักษณ์ไพ่</span>
+                <span>กติกา & สัญลักษณ์ไพ่</span>
               </button>
 
               <button

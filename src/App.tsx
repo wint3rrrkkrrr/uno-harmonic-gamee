@@ -35,6 +35,7 @@ import { AboutModal } from './components/AboutModal';
 import { GameOverModal } from './components/GameOverModal';
 import { OnlineLobbyModal } from './components/OnlineLobbyModal';
 import { SupabaseConfigModal } from './components/SupabaseConfigModal';
+import { TutorialModal } from './components/TutorialModal';
 import {
   isSupabaseConfigured,
   createRoomInSupabase,
@@ -43,6 +44,7 @@ import {
   syncGameStateToSupabase,
   claimEquationAnswerAtomic,
   updateLobbyPlayersInSupabase,
+  updateRoomGameModeInSupabase,
   leaveRoomInSupabase,
   subscribeToSupabaseRoom,
   getSavedRoomSession,
@@ -61,6 +63,7 @@ export default function App() {
   const [hasSavedGame, setHasSavedGame] = useState<boolean>(false);
   const [showHowToPlay, setShowHowToPlay] = useState<boolean>(false);
   const [showAbout, setShowAbout] = useState<boolean>(false);
+  const [showTutorial, setShowTutorial] = useState<boolean>(false);
   const [wildPickerPlayer, setWildPickerPlayer] = useState<Player | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -69,6 +72,7 @@ export default function App() {
   const [showSupabaseConfig, setShowSupabaseConfig] = useState<boolean>(false);
   const [isSupabaseReady, setIsSupabaseReady] = useState<boolean>(isSupabaseConfigured());
   const [onlineRoomInfo, setOnlineRoomInfo] = useState<OnlineRoomInfo | null>(null);
+  const [onlineGameMode, setOnlineGameMode] = useState<GameMode>('FIND_WINNER');
   const [localOnlinePlayer, setLocalOnlinePlayer] = useState<{
     id: string;
     name: string;
@@ -160,8 +164,13 @@ export default function App() {
       status: record.status as any,
       players: record.players || [],
       maxPlayers: 6,
+      gameMode: record.state?.gameMode || prev?.gameMode || 'FIND_WINNER',
       version: record.version,
     } as any));
+
+    if (record.state?.gameMode) {
+      setOnlineGameMode(record.state.gameMode);
+    }
 
     // Update localOnlinePlayer state from latest players list
     setLocalOnlinePlayer((prev) => {
@@ -1891,6 +1900,7 @@ export default function App() {
           }}
           onOpenHowToPlay={() => setShowHowToPlay(true)}
           onOpenAbout={() => setShowAbout(true)}
+          onOpenTutorial={() => setShowTutorial(true)}
         />
       ) : (
         /* Screen 2: Main Game Board */
@@ -1904,6 +1914,7 @@ export default function App() {
           onCatchHarmonic={handleCatchHarmonic}
           onPlayDrawnCardChoice={handlePlayDrawnCardChoice}
           onOpenHowToPlay={() => setShowHowToPlay(true)}
+          onOpenTutorial={() => setShowTutorial(true)}
           onSaveGame={() => {
             saveGameState(gameState);
           }}
@@ -2029,6 +2040,22 @@ export default function App() {
 
       {/* About Modal */}
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
+
+      {/* Interactive Guided Tutorial Modal */}
+      <TutorialModal
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        onStartRealGame={() => {
+          setShowTutorial(false);
+          const defaultConfigs = [
+            { name: 'ผู้เล่น (คุณ)', letter: 'A' as const, isBot: false },
+            { name: 'บอท B (AI)', letter: 'B' as const, isBot: true },
+            { name: 'บอท C (AI)', letter: 'C' as const, isBot: true },
+            { name: 'บอท D (AI)', letter: 'D' as const, isBot: true },
+          ];
+          handleStartNewGame(defaultConfigs, 'FIND_WINNER');
+        }}
+      />
     </div>
   );
 }

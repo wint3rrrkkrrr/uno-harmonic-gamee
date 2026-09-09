@@ -6,6 +6,7 @@ import {
   PlayerLetter,
   RoomPlayer,
   ActionAnnouncement,
+  GameMode,
 } from '../types/game';
 import { PLAYER_LETTERS } from './cardUtils';
 
@@ -161,7 +162,8 @@ export interface RoomRecord {
  * The room creator is automatically assigned as Host with Player Letter 'A'.
  */
 export async function createRoomInSupabase(
-  playerName: string
+  playerName: string,
+  gameMode: GameMode = 'FIND_WINNER'
 ): Promise<{ roomInfo: OnlineRoomInfo; localPlayer: RoomPlayer; state: GameState }> {
   const supabase = getSupabase();
   if (!supabase) {
@@ -201,7 +203,7 @@ export async function createRoomInSupabase(
     currentEquationState: null,
     drawnCardChoice: null,
     gamePhase: 'LOBBY',
-    gameMode: 'FIND_WINNER',
+    gameMode: gameMode,
     pendingDraw: 0,
     finishedPlayers: [],
     winner: null,
@@ -210,7 +212,7 @@ export async function createRoomInSupabase(
       {
         id: `log-${Date.now()}`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `🚪 สร้างห้องรหัส ${roomCode} โดย ${hostPlayer.name}`,
+        text: `🚪 สร้างห้องรหัส ${roomCode} โดย ${hostPlayer.name} (${gameMode === 'FIND_LOSER' ? 'Last Man Standing' : 'First to Finish'})`,
         type: 'info',
       },
     ],
@@ -265,6 +267,7 @@ export async function createRoomInSupabase(
     status: 'LOBBY',
     players: [hostPlayer],
     maxPlayers: 6,
+    gameMode: gameMode,
   };
 
   saveRoomSession(roomCode, hostPlayer);
@@ -387,6 +390,7 @@ export async function joinRoomInSupabase(
     status: room.status,
     players: updatedPlayers,
     maxPlayers: 6,
+    gameMode: room.state?.gameMode || 'FIND_WINNER',
   };
 
   saveRoomSession(cleanCode, newPlayer);
@@ -422,6 +426,7 @@ export async function reconnectRoomInSupabase(
       status: room.status,
       players,
       maxPlayers: 6,
+      gameMode: room.state?.gameMode || 'FIND_WINNER',
     };
 
     return {
@@ -436,6 +441,51 @@ export async function reconnectRoomInSupabase(
   } catch (e) {
     console.error('Error reconnecting to room:', e);
     return null;
+  }
+}
+
+/**
+ * Updates the game mode of an active room (Host only in lobby).
+ */
+export async function updateRoomGameModeInSupabase(
+  roomCode: string,
+  newMode: GameMode
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const cleanCode = roomCode.trim().toUpperCase();
+  try {
+    const { data: room } = await supabase
+      .from('rooms')
+      .select('state, version')
+      .eq('room_code', cleanCode)
+      .maybeSingle();
+
+    if (!room) return;
+
+    const nextState: GameState = {
+      ...room.state,
+      gameMode: newMode,
+      version: (room.version || 1) + 1,
+    };
+
+    const { data: updatedRecord, error } = await supabase
+      .from('rooms')
+      .update({
+        state: nextState,
+        version: nextState.version,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('room_code', cleanCode)
+      .select()
+      .single();
+
+    if (!error && updatedRecord) {
+      broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
+    }
+  } catch (err) {
+    console.error('Failed to update game mode in Supabase:', err);
   }
 }
 

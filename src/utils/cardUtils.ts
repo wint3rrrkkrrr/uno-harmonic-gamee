@@ -98,10 +98,18 @@ export function canPlayCard(
   currentColor: CardColor,
   pendingDraw: number = 0
 ): boolean {
-  // If there is an active pending draw (+2 or +4 stack active):
+  // Any + card (+2 or +4) can ALWAYS be stacked or played on another + card (+2 or +4)!
+  const isPlusCard = card.type === 'DRAW_TWO' || card.type === 'WILD_DRAW_FOUR';
+  const isTopPlusCard = topCard.type === 'DRAW_TWO' || topCard.type === 'WILD_DRAW_FOUR';
+
   if (pendingDraw > 0) {
-    // Only +2 (DRAW_TWO) and +4 (WILD_DRAW_FOUR) can be stacked!
-    return card.type === 'DRAW_TWO' || card.type === 'WILD_DRAW_FOUR';
+    // Stacking penalty: can stack any +2 or +4
+    return isPlusCard;
+  }
+
+  // Can play +2 on +4, +4 on +2, +2 on +2, +4 on +4 at any time
+  if (isPlusCard && isTopPlusCard) {
+    return true;
   }
 
   // Wild and Wild+4 can be played on any card

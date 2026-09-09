@@ -170,7 +170,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                 <div>
                   <h5 className="font-bold text-white">WILD DRAW FOUR (+4)</h5>
                   <p className="text-xs text-slate-300">
-                    เปลี่ยนสีนำของเกม และผู้เล่นคนถัดไปต้องจั่ว 4 ใบ (หรือสามารถลง +4 ทับต่อเพื่อสะสมเป็น +8, +12 ได้)
+                    เปลี่ยนสีนำของเกม และผู้เล่นคนถัดไปต้องจั่ว 4 ใบ (หรือสามารถลง +2 หรือ +4 ทับต่อเพื่อสะสมเป็น +6, +8, +12 ได้)
                   </p>
                 </div>
               </div>
@@ -229,12 +229,12 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                   <span>ยอดจั่วสะสมจาก +2 จะเพิ่มขึ้นเป็น +6</span>
                 </div>
                 <div className="p-3 bg-slate-900/90 rounded-xl border border-emerald-500/30 flex items-center gap-3">
+                  <span className="text-emerald-400 font-black text-sm">✅ +2 ทับ +4:</span>
+                  <span>ยอดจั่วสะสมจาก +4 จะเพิ่มขึ้นเป็น +6, +8 ... (ลงทับกันได้อิสระ)</span>
+                </div>
+                <div className="p-3 bg-slate-900/90 rounded-xl border border-emerald-500/30 flex items-center gap-3">
                   <span className="text-emerald-400 font-black text-sm">✅ +4 ทับ +4:</span>
                   <span>ยอดจั่วสะสมเพิ่มขึ้นเป็น +8, +12, +16 ...</span>
-                </div>
-                <div className="p-3 bg-slate-900/90 rounded-xl border border-rose-500/30 flex items-center gap-3 text-rose-200">
-                  <span className="text-rose-400 font-black text-sm">❌ +2 ทับ +4:</span>
-                  <span>ไม่สามารถลง +2 ทับบน +4 ได้</span>
                 </div>
               </div>
 

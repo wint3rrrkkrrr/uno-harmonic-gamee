@@ -167,6 +167,7 @@ export interface OnlineRoomInfo {
   players: RoomPlayer[];
   status: 'LOBBY' | 'PLAYING' | 'ENDED';
   maxPlayers: number;
+  gameMode?: GameMode;
 }
 
 export interface GameState {
