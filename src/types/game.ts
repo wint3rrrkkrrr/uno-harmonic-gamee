@@ -1,8 +1,17 @@
 export type CardColor = 'RED' | 'BLUE' | 'GREEN' | 'YELLOW' | 'WILD';
 
-export type CardType = 'NUMBER' | 'DRAW_TWO' | 'SKIP' | 'REVERSE' | 'EQUATION' | 'WILD';
+export type CardType =
+  | 'NUMBER'
+  | 'DRAW_TWO'
+  | 'SKIP'
+  | 'REVERSE'
+  | 'EQUATION'
+  | 'WILD'
+  | 'WILD_DRAW_FOUR';
 
 export type PlayerLetter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+
+export type GameMode = 'FIND_WINNER' | 'FIND_LOSER';
 
 export interface Card {
   id: string;
@@ -18,6 +27,14 @@ export interface Player {
   hand: Card[];
   isBot: boolean;
   calledHarmonic: boolean; // must be true when 1 card left
+  isFinished?: boolean;
+  finishRank?: number;
+}
+
+export interface FinishedPlayer {
+  player: Player;
+  rank: number;
+  finishTime: number;
 }
 
 export type EquationDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
@@ -27,7 +44,7 @@ export interface EquationBlank {
   variable: string; // e.g. 'f', 'T', 'k', 'm', 'A', 'ω', 'x', 't'
   nameTh: string;   // Thai explanation e.g. ความถี่ (f)
   unit: string;
-  color: 'RED' | 'BLUE' | 'GREEN' | 'YELLOW';
+  color?: 'RED' | 'BLUE' | 'GREEN' | 'YELLOW';
   assignedPlayerId: string | null;
   filledValue: number | null;
   filledCardId?: string;
@@ -78,6 +95,8 @@ export interface EquationResultState {
   steps?: string[];
   correctAnswerDisplay?: string;
   pendingFreeDiscardPlayerId?: string | null;
+  cardsToDiscardCount?: number; // 1 for EASY/MEDIUM, 2 for HARD
+  discardedCount?: number;
   solution?: any;
 }
 
@@ -85,7 +104,7 @@ export interface EquationActiveState {
   equation: EquationCard;
   currentBlankIndex: number;
   assignedPlayerId: string;
-  candidatePlayerIndex?: number; // for cascading when player doesn't have required color
+  candidatePlayerIndex?: number; // for cascading when player doesn't have required card
   candidatePlayerOrder?: string[]; // order of players to ask
   statusMessage?: string;
   allFilled: boolean;
@@ -164,7 +183,11 @@ export interface GameState {
   wildPickerPlayerId?: string | null;
   wildPickerPlayerName?: string | null;
   gamePhase: GamePhase;
+  gameMode: GameMode;
+  pendingDraw: number;
+  finishedPlayers: FinishedPlayer[];
   winner: Player | null;
+  loser?: Player | null;
   turnsCount: number;
   logs: GameLogEntry[];
   lastActionTime: number;

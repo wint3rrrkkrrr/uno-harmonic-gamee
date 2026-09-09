@@ -98,10 +98,9 @@ export const EquationModal: React.FC<EquationModalProps> = ({
   const currentBlank = equation.blanks[currentBlankIndex];
   const assignedPlayer = players.find((p) => p.id === state.assignedPlayerId);
 
-  const matchingNumberCards = assignedPlayer
-    ? assignedPlayer.hand.filter(
-        (c) => c.type === 'NUMBER' && c.color === currentBlank?.color
-      )
+  // Card color does NOT restrict variable filling - any NUMBER card (0-9) can fill any blank!
+  const availableNumberCards = assignedPlayer
+    ? assignedPlayer.hand.filter((c) => c.type === 'NUMBER')
     : [];
 
   const claimingPlayer = players.find((p) => p.id === claimedByPlayerId);
@@ -194,19 +193,8 @@ export const EquationModal: React.FC<EquationModalProps> = ({
               <div className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
                 ตัวแปรและช่องว่างที่ต้องใส่ค่า (EQUATION BLANKS):
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono">
-                <span className="px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/50 text-rose-200">
-                  🔴 แดง = Amplitude (A) — แอมพลิจูด
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/50 text-cyan-200">
-                  🔵 น้ำเงิน = Angular Frequency (ω) — ความถี่เชิงมุม
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-500/50 text-emerald-200">
-                  🟢 เขียว = Spring Constant (k) — ค่าคงที่สปริง
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-200">
-                  🟡 เหลือง = Mass (m) — มวล
-                </span>
+              <div className="text-[11px] text-cyan-300 font-medium bg-cyan-950/60 px-3 py-1 rounded-full border border-cyan-400/30">
+                💡 ใช้ไพ่ตัวเลข (0–9) สีใดก็ได้ (🔴 🔵 🟢 🟡) เติมในสมการ
               </div>
             </div>
 
@@ -230,12 +218,8 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                       <span className="font-bold text-slate-200">
                         ช่องที่ {idx + 1}: {b.nameTh}
                       </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${getColorBg(
-                          b.color
-                        )} text-white shadow-sm`}
-                      >
-                        {b.color}
+                      <span className="text-[10px] font-mono text-cyan-300 bg-slate-900 px-2 py-0.5 rounded-md border border-white/10">
+                        ตัวแปร {b.variable}
                       </span>
                     </div>
 
@@ -246,7 +230,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                         className={`min-w-[52px] px-3.5 py-1 rounded-lg text-center font-black border-2 ${
                           b.filledValue !== null
                             ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 text-xl shadow-sm'
-                            : `${getColorBorder(b.color)} bg-slate-950 text-slate-400 animate-pulse`
+                            : 'border-cyan-400/60 bg-slate-950 text-slate-400 animate-pulse'
                         }`}
                       >
                         {b.filledValue !== null ? b.filledValue : '___'}
@@ -293,7 +277,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                     </span>
                     <span>{assignedPlayer.name}</span>
                     <span className="text-xs text-slate-300 font-normal">
-                      (ต้องใช้ Number Card สี {currentBlank.color})
+                      (เลือกไพ่ตัวเลข 0–9 สีใดก็ได้จากมือ)
                     </span>
                   </div>
                 </div>
@@ -310,9 +294,9 @@ export const EquationModal: React.FC<EquationModalProps> = ({
               {/* Case 1 & 2: Check if this is the active player's turn to fill the blank */}
               {(() => {
                 const isMyBlankTurn =
-                  !isOnline ||
-                  (assignedPlayer && assignedPlayer.id === localPlayerId) ||
-                  (assignedPlayer?.isBot && isHost);
+                  Boolean(assignedPlayer &&
+                  !assignedPlayer.isBot &&
+                  (assignedPlayer.id === localPlayerId || !isOnline));
 
                 if (!isMyBlankTurn) {
                   return (
@@ -322,28 +306,20 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                         <span>กำลังรอ Player {assignedPlayer?.letter} ({assignedPlayer?.name}) เติมค่า...</span>
                       </div>
                       <p className="text-xs text-slate-400">
-                        ผู้เล่นต้องนำ Number Card สี{' '}
-                        <span className={`font-bold ${getColorText(currentBlank.color)}`}>
-                          {currentBlank.color}
-                        </span>{' '}
-                        มาเติมค่าในช่องนี้
+                        ผู้เล่นต้องนำ Number Card จากมือมาเติมค่าในช่องนี้
                       </p>
                     </div>
                   );
                 }
 
-                if (matchingNumberCards.length > 0) {
+                if (availableNumberCards.length > 0) {
                   return (
                     <div>
                       <p className="text-xs text-slate-300 mb-2.5">
-                        เลือก Number Card สี{' '}
-                        <span className={`font-bold ${getColorText(currentBlank.color)}`}>
-                          {currentBlank.color}
-                        </span>{' '}
-                        จากมือของ {assignedPlayer.name} เพื่อเติมค่าลงในช่อง:
+                        เลือก Number Card (ตัวเลข 0–9 สีใดก็ได้) จากมือของ {assignedPlayer.name} เพื่อเติมค่า:
                       </p>
                       <div className="flex flex-wrap gap-3 items-center">
-                        {matchingNumberCards.map((card) => (
+                        {availableNumberCards.map((card) => (
                           <button
                             key={card.id}
                             onClick={() => onFillBlank(currentBlankIndex, card, assignedPlayer.id)}
@@ -360,9 +336,9 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                 return (
                   <div className="space-y-3">
                     <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs sm:text-sm">
-                      ❌ <strong>{assignedPlayer.name} ไม่มีไพ่ตัวเลขสี {currentBlank.color} ในมือ!</strong>
+                      ❌ <strong>{assignedPlayer.name} ไม่มีไพ่ตัวเลข (0–9) ในมือเลย!</strong>
                       <br />
-                      กรุณาเลือกจั่วไพ่ 1 ใบเพื่อลุ้นหาการ์ดสีที่ต้องการ หรือส่งต่อให้ผู้เล่นคนถัดไป
+                      กรุณาเลือกจั่วไพ่ 1 ใบเพื่อหาไพ่ตัวเลข หรือส่งต่อให้ผู้เล่นคนถัดไป
                     </div>
 
                     <div className="flex flex-wrap gap-2.5">
@@ -660,9 +636,8 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                       if (!rewardingPlayer || rewardingPlayer.hand.length === 0) return null;
 
                       const isMyReward =
-                        !isOnline ||
-                        rewardingPlayer.id === localPlayerId ||
-                        (rewardingPlayer.isBot && isHost);
+                        !rewardingPlayer.isBot &&
+                        (rewardingPlayer.id === localPlayerId || !isOnline);
 
                       if (!isMyReward) {
                         return (

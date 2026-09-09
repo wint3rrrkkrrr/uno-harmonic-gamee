@@ -95,10 +95,8 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-rose-500 via-rose-600 to-rose-950',
           border: 'border-rose-300/90 shadow-rose-950/80',
           glow: 'card-glow-red',
-          badgeText: 'Amplitude (A) — แอมพลิจูด',
-          variableSymbol: 'A',
-          variableName: 'แอมพลิจูด',
-          variableFull: 'Amplitude (A)',
+          badgeText: 'สีแดง (RED)',
+          colorName: 'แดง',
           cornerBadge: 'bg-rose-950/80 text-rose-200',
           accent: 'text-rose-100',
         };
@@ -107,10 +105,8 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-cyan-400 via-sky-600 to-blue-950',
           border: 'border-cyan-200/90 shadow-cyan-950/80',
           glow: 'card-glow-blue',
-          badgeText: 'Angular Frequency (ω) — ความถี่เชิงมุม',
-          variableSymbol: 'ω',
-          variableName: 'ความถี่เชิงมุม',
-          variableFull: 'Angular Frequency (ω)',
+          badgeText: 'สีน้ำเงิน (BLUE)',
+          colorName: 'น้ำเงิน',
           cornerBadge: 'bg-sky-950/80 text-cyan-200',
           accent: 'text-cyan-100',
         };
@@ -119,10 +115,8 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-emerald-400 via-emerald-600 to-teal-950',
           border: 'border-emerald-200/90 shadow-emerald-950/80',
           glow: 'card-glow-green',
-          badgeText: 'Spring Constant (k) — ค่าคงที่สปริง',
-          variableSymbol: 'k',
-          variableName: 'ค่าคงที่สปริง',
-          variableFull: 'Spring Constant (k)',
+          badgeText: 'สีเขียว (GREEN)',
+          colorName: 'เขียว',
           cornerBadge: 'bg-emerald-950/80 text-emerald-200',
           accent: 'text-emerald-100',
         };
@@ -131,10 +125,8 @@ export const CardView: React.FC<CardViewProps> = ({
           bg: 'bg-gradient-to-b from-amber-300 via-amber-500 to-amber-900',
           border: 'border-amber-100/95 shadow-amber-950/80',
           glow: 'card-glow-yellow',
-          badgeText: 'Mass (m) — มวล',
-          variableSymbol: 'm',
-          variableName: 'มวล',
-          variableFull: 'Mass (m)',
+          badgeText: 'สีเหลือง (YELLOW)',
+          colorName: 'เหลือง',
           cornerBadge: 'bg-amber-950/80 text-amber-200',
           accent: 'text-amber-50',
         };
@@ -145,9 +137,7 @@ export const CardView: React.FC<CardViewProps> = ({
           border: 'border-fuchsia-400/90 shadow-purple-950/90',
           glow: 'card-glow-wild',
           badgeText: 'เปลี่ยนสี (WILD)',
-          variableSymbol: '★',
-          variableName: 'เปลี่ยนสี',
-          variableFull: 'Wild Color',
+          colorName: 'เปลี่ยนสี',
           cornerBadge: 'bg-purple-950/80 text-fuchsia-200',
           accent: 'text-fuchsia-100',
         };
@@ -162,15 +152,12 @@ export const CardView: React.FC<CardViewProps> = ({
       case 'NUMBER':
         return (
           <div className="flex flex-col items-center justify-center my-auto text-center px-1">
-            <span className="font-black text-3xl sm:text-5xl text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] tracking-tight leading-none">
+            <span className="font-black text-4xl sm:text-6xl text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)] tracking-tight leading-none">
               {card.value}
             </span>
-            <div className="h-0.5 w-6 sm:w-8 bg-white/50 rounded-full mt-1.5 mb-1" />
-            <span className="text-[8px] sm:text-[9.5px] font-black text-white drop-shadow tracking-tight leading-tight">
-              {scheme.variableFull}
-            </span>
-            <span className="text-[7.5px] sm:text-[8.5px] text-white/90 font-bold leading-tight">
-              {scheme.variableName}
+            <div className="h-0.5 w-7 sm:w-10 bg-white/60 rounded-full mt-2 mb-1" />
+            <span className="text-[9px] sm:text-[10px] font-black text-white/90 drop-shadow tracking-wider uppercase">
+              {scheme.colorName} {card.value}
             </span>
           </div>
         );
@@ -186,7 +173,7 @@ export const CardView: React.FC<CardViewProps> = ({
             <span className="text-[9px] sm:text-[11px] font-black tracking-tight text-white uppercase mt-1 leading-tight drop-shadow">
               จั่ว 2 ใบ
             </span>
-            <span className="text-[7px] sm:text-[8px] text-white/90 font-bold tracking-wider">(+2 ไพ่)</span>
+            <span className="text-[7px] sm:text-[8px] text-white/90 font-bold tracking-wider">(DRAW TWO)</span>
           </div>
         );
       case 'SKIP':
@@ -239,18 +226,41 @@ export const CardView: React.FC<CardViewProps> = ({
             </span>
           </div>
         );
+      case 'WILD_DRAW_FOUR':
+        return (
+          <div className="flex flex-col items-center justify-center my-auto text-center px-1">
+            <div className="relative flex items-center justify-center mb-1">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full grid grid-cols-2 p-1 gap-0.5 bg-slate-950/80 border border-white/60 shadow-xl">
+                <div className="bg-rose-500 rounded-tl-full" />
+                <div className="bg-cyan-400 rounded-tr-full" />
+                <div className="bg-amber-400 rounded-bl-full" />
+                <div className="bg-emerald-400 rounded-br-full" />
+              </div>
+              <span className="absolute font-black text-base sm:text-xl text-white drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
+                +4
+              </span>
+            </div>
+            <span className="font-black text-[11px] sm:text-xs tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-rose-300 via-amber-200 to-cyan-300 drop-shadow">
+              เปลี่ยนสี +4
+            </span>
+            <span className="text-[7px] sm:text-[8px] text-purple-200 font-bold uppercase tracking-wider">
+              (WILD +4)
+            </span>
+          </div>
+        );
       default:
         return null;
     }
   };
 
   const cornerSymbol = () => {
-    if (card.type === 'NUMBER') return `${card.value} ${scheme.variableSymbol}`;
+    if (card.type === 'NUMBER') return `${card.value}`;
     if (card.type === 'DRAW_TWO') return '+2';
     if (card.type === 'SKIP') return '⏭';
     if (card.type === 'REVERSE') return '↺';
     if (card.type === 'EQUATION') return '∿';
     if (card.type === 'WILD') return '★';
+    if (card.type === 'WILD_DRAW_FOUR') return '+4★';
     return '';
   };
 

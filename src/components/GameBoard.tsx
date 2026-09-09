@@ -15,6 +15,8 @@ import {
   Zap,
   AlertTriangle,
   Radio,
+  Trophy,
+  Skull,
 } from 'lucide-react';
 
 interface GameBoardProps {
@@ -56,10 +58,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     turnsCount,
     actionAnnouncement,
     roomId,
+    gameMode = 'FIND_WINNER',
+    finishedPlayers = [],
   } = state;
 
   const currentPlayer = players[currentPlayerIndex];
-  const localPlayer = players.find((p) => p.id === localPlayerId) || players[0];
+  const localPlayer =
+    players.find((p) => p.id === localPlayerId) ||
+    players.find((p) => !p.isBot) ||
+    players[0];
   const isMyTurn = currentPlayer?.id === localPlayer?.id;
   const topCard = discardPile[discardPile.length - 1];
 
@@ -127,6 +134,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({
               </span>
               <span className="text-[10px] font-mono text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded-full border border-white/10">
                 รอบที่ #{turnsCount}
+              </span>
+              <span
+                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                  gameMode === 'FIND_LOSER'
+                    ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
+                    : 'bg-amber-950/80 text-amber-300 border-amber-500/40'
+                }`}
+              >
+                {gameMode === 'FIND_LOSER' ? (
+                  <>
+                    <Skull className="w-3 h-3 text-rose-400" />
+                    <span>ผู้เหลือไพ่คนสุดท้าย</span>
+                  </>
+                ) : (
+                  <>
+                    <Trophy className="w-3 h-3 text-amber-400" />
+                    <span>ใครหมดก่อนชนะ</span>
+                  </>
+                )}
               </span>
             </div>
             <span className="text-[9px] font-mono text-cyan-400/80 uppercase tracking-wider hidden sm:block">
@@ -201,13 +227,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             const isTurn = idx === currentPlayerIndex;
             const isMe = p.id === localPlayer?.id;
             const hasOneCard = p.hand.length === 1;
+            const isFinished = p.isFinished || p.hand.length === 0;
 
             return (
               <motion.div
                 key={p.id}
                 animate={isTurn ? { scale: 1.04 } : { scale: 1 }}
                 className={`relative px-3 py-1.5 sm:py-2 rounded-2xl border transition-all flex items-center gap-2.5 backdrop-blur-md ${
-                  isTurn
+                  isFinished
+                    ? 'border-emerald-500/40 bg-emerald-950/40 opacity-75'
+                    : isTurn
                     ? 'border-cyan-400 bg-cyan-950/70 shadow-lg shadow-cyan-500/30 ring-2 ring-cyan-400/50'
                     : isMe
                     ? 'border-indigo-400/40 bg-indigo-950/40'
@@ -217,14 +246,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 {/* Avatar Icon */}
                 <div
                   className={`w-8 h-8 rounded-xl font-black font-mono flex items-center justify-center text-xs shadow-md flex-shrink-0 relative ${
-                    isTurn
+                    isFinished
+                      ? 'bg-emerald-500 text-slate-950 font-black'
+                      : isTurn
                       ? 'bg-gradient-to-br from-cyan-400 to-blue-600 text-slate-950 font-black'
                       : isMe
                       ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white'
                       : 'bg-slate-800 text-slate-300'
                   }`}
                 >
-                  {p.letter}
+                  {isFinished ? '✓' : p.letter}
                   {p.isBot ? (
                     <Bot className="w-3 h-3 absolute -bottom-1 -right-1 text-cyan-300 bg-slate-950 rounded-full p-0.5 border border-cyan-400/50" />
                   ) : (
@@ -245,20 +276,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] font-mono font-bold text-indigo-300 flex items-center gap-0.5">
-                      <span>🎴</span>
-                      <span>{p.hand.length}</span>
-                    </span>
-
-                    {hasOneCard && (
-                      <span className="text-[10px] font-black text-amber-400 animate-pulse bg-amber-500/20 px-1 rounded">
-                        {p.calledHarmonic ? 'HARMONIC!' : '1 ใบ!'}
+                    {isFinished ? (
+                      <span className="text-[10px] font-mono font-black text-emerald-400">
+                        {p.finishRank ? `อันดับ #${p.finishRank}` : 'หมดมือแล้ว ✓'}
                       </span>
+                    ) : (
+                      <>
+                        <span className="text-[11px] font-mono font-bold text-indigo-300 flex items-center gap-0.5">
+                          <span>🎴</span>
+                          <span>{p.hand.length}</span>
+                        </span>
+
+                        {hasOneCard && (
+                          <span className="text-[10px] font-black text-amber-400 animate-pulse bg-amber-500/20 px-1 rounded">
+                            {p.calledHarmonic ? 'HARMONIC!' : '1 ใบ!'}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
 
-                {isTurn && (
+                {isTurn && !isFinished && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
                 )}
               </motion.div>

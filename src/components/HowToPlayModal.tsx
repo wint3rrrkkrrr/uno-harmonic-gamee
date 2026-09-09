@@ -17,7 +17,7 @@ interface HowToPlayModalProps {
 }
 
 export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'BASICS' | 'SPECIAL' | 'EQUATION' | 'HARMONIC'>('BASICS');
+  const [activeTab, setActiveTab] = useState<'BASICS' | 'SPECIAL' | 'STACKING' | 'EQUATION' | 'MODES'>('BASICS');
 
   if (!isOpen) return null;
 
@@ -38,7 +38,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                 คู่มือและกติกาการเล่นเกม HARMONIC
               </h2>
               <p className="text-xs text-slate-400 font-medium">
-                เล่นสนุกสไตล์การ์ดเกม ผสมผสานองค์ความรู้ฟิสิกส์ฮาร์มอนิกอย่างง่าย (SHM)
+                เกมการ์ดประลองไหวพริบ ผสมผสานฟิสิกส์ฮาร์มอนิกอย่างง่าย (SHM)
               </p>
             </div>
           </div>
@@ -54,7 +54,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
         <div className="flex border-b border-white/10 bg-slate-950/60 p-2 gap-1.5 overflow-x-auto text-xs font-bold scrollbar-none">
           <button
             onClick={() => setActiveTab('BASICS')}
-            className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'BASICS'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -65,36 +65,47 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
           </button>
           <button
             onClick={() => setActiveTab('SPECIAL')}
-            className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'SPECIAL'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>2. ไพ่พิเศษ 4 แบบ</span>
+            <span>2. การ์ดพิเศษ (+2, +4, E, ฯลฯ)</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('STACKING')}
+            className={`px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'STACKING'
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>3. กฎการทับการ์ดจั่ว (Stacking)</span>
           </button>
           <button
             onClick={() => setActiveTab('EQUATION')}
-            className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'EQUATION'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <Atom className="w-3.5 h-3.5" />
-            <span>3. สูตรฟิสิกส์ (ไพ่ E)</span>
+            <span>4. โจทย์สมการ SHM (ไพ่ E)</span>
           </button>
           <button
-            onClick={() => setActiveTab('HARMONIC')}
-            className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'HARMONIC'
+            onClick={() => setActiveTab('MODES')}
+            className={`px-3.5 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'MODES'
                 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md'
                 : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>4. พูด HARMONIC!</span>
+            <span>5. โหมดเกม & HARMONIC!</span>
           </button>
         </div>
 
@@ -105,47 +116,33 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
               <div className="p-4 rounded-2xl bg-cyan-950/40 border border-cyan-400/30 text-cyan-200 font-medium flex items-center gap-3">
                 <Target className="w-6 h-6 text-cyan-400 flex-shrink-0" />
                 <div>
-                  <strong>เป้าหมายของเกม:</strong> ใครที่ลงไพ่ในมือจนหมดเกลี้ยงก่อน จะเป็นผู้ชนะในรอบนั้นทันที!
+                  <strong>เป้าหมายของเกม:</strong> ลงไพ่ในมือให้หมดเพื่อคว้าชัยชนะ และฝึกฝนการคิดคำนวณสูตรฟิสิกส์ SHM
                 </div>
               </div>
 
-              <div>
-                <h4 className="font-bold text-white text-base mb-2">ความหมายของสีไพ่ทั้ง 4 สี:</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-mono text-xs">
-                  <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-rose-500 flex-shrink-0" />
-                    <span>🔴 แดง = Amplitude (A) — แอมพลิจูด</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-200 flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-cyan-400 flex-shrink-0" />
-                    <span>🔵 น้ำเงิน = Angular Frequency (ω) — ความถี่เชิงมุม</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" />
-                    <span>🟢 เขียว = Spring Constant (k) — ค่าคงที่สปริง</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-amber-950/60 border border-amber-500/40 text-amber-200 flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
-                    <span>🟡 เหลือง = Mass (m) — มวล</span>
-                  </div>
-                </div>
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 space-y-2">
+                <h4 className="font-bold text-white text-base">📌 สีของไพ่ไม่มีผลต่อค่าตัวแปร:</h4>
+                <p className="text-slate-300 text-xs sm:text-sm">
+                  สีของไพ่ตัวเลข <strong>ไม่ได้มีความหมายแทนตัวแปรฟิสิกส์ใด ๆ</strong> และไม่ต้องจับคู่สีกับตัวแปร
+                  ไพ่ตัวเลขทั้ง 4 สี (🔴 🔵 🟢 🟡) สามารถใช้แทนค่าตัวแปรใน Equation Card ได้ทั้งหมด โดยดูเฉพาะตัวเลขบนไพ่เท่านั้น!
+                </p>
               </div>
 
               <div>
                 <h4 className="font-bold text-white text-base mb-2">รอบการเล่นในแต่ละเทิร์น:</h4>
                 <ol className="list-decimal list-inside space-y-2 text-slate-300">
-                  <li>ดูไพ่ใบบนสุดของ <strong>กองไพ่ทิ้ง (Discard Pile)</strong> ที่อยู่กลางโต๊ะ</li>
+                  <li>ดูไพ่ใบบนสุดของ <strong>กองไพ่ทิ้ง (Discard Pile)</strong></li>
                   <li>
                     คุณสามารถลงไพ่ได้ ถ้าไพ่ในมือของคุณมี:
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1 text-slate-200">
-                      <li><strong>สีตรงกัน</strong> กับกองทิ้ง (แดงลงทับแดง, เขียวทับเขียว ฯลฯ)</li>
-                      <li><strong>ตัวเลขตรงกัน</strong> (เช่น เลข 4 ทับเลข 4 แม้จะคนละสี)</li>
-                      <li><strong>สัญลักษณ์เดียวกัน</strong> (เช่น ข้ามตาทับข้ามตา)</li>
-                      <li><strong>ไพ่เปลี่ยนสี (WILD)</strong> ลงได้เสมอไม่ว่ากองทิ้งจะเป็นสีอะไร</li>
+                      <li><strong>สีตรงกัน</strong> (แดงลงทับแดง, น้ำเงินทับน้ำเงิน ฯลฯ)</li>
+                      <li><strong>ตัวเลขตรงกัน</strong> (เช่น เลข 5 ทับเลข 5 แม้จะคนละสี)</li>
+                      <li><strong>สัญลักษณ์เดียวกัน</strong> (เช่น SKIP ทับ SKIP, +2 ทับ +2)</li>
+                      <li><strong>ไพ่เปลี่ยนสี (WILD / WILD +4)</strong> ลงได้เสมอ</li>
                     </ul>
                   </li>
                   <li>
-                    หากไม่มีไพ่ที่ลงได้ ให้กดปุ่ม <strong>จั่วไพ่ 1 ใบ</strong> จากกองจั่ว หากใบที่จั่วขึ้นมาลงได้ คุณสามารถเลือกตัดสินใจลงต่อได้ทันที
+                    หากไม่มีไพ่ที่ลงได้ ให้กดปุ่ม <strong>จั่วไพ่</strong> หากใบที่จั่วขึ้นมาลงได้ สามารถเลือกลงต่อได้ทันที
                   </li>
                 </ol>
               </div>
@@ -161,7 +158,19 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                 <div>
                   <h5 className="font-bold text-white">DRAW TWO (+2)</h5>
                   <p className="text-xs text-slate-300">
-                    ผู้เล่นคนถัดไปต้องจั่วไพ่ 2 ใบจากกองจั่ว และถูกบังคับข้ามตาเล่นทันที!
+                    ผู้เล่นคนถัดไปต้องจั่ว 2 ใบและข้ามตา (หรือสามารถลง +2 หรือ +4 ทับเพื่อส่งต่อโทษสะสมได้)
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-purple-500/40 flex items-start gap-3">
+                <div className="px-2.5 py-1 bg-purple-600 text-white rounded-lg font-mono font-black text-xs">
+                  +4★
+                </div>
+                <div>
+                  <h5 className="font-bold text-white">WILD DRAW FOUR (+4)</h5>
+                  <p className="text-xs text-slate-300">
+                    เปลี่ยนสีนำของเกม และผู้เล่นคนถัดไปต้องจั่ว 4 ใบ (หรือสามารถลง +4 ทับต่อเพื่อสะสมเป็น +8, +12 ได้)
                   </p>
                 </div>
               </div>
@@ -171,7 +180,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                 <div>
                   <h5 className="font-bold text-white">SKIP (ข้ามตา)</h5>
                   <p className="text-xs text-slate-300">
-                    ข้ามตาของผู้เล่นคนถัดไปทันที ตาเล่นจะข้ามไปยังผู้เล่นลำดับต่อไป
+                    ข้ามตาของผู้เล่นคนถัดไปทันที
                   </p>
                 </div>
               </div>
@@ -181,7 +190,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                 <div>
                   <h5 className="font-bold text-white">REVERSE (กลับทิศทาง)</h5>
                   <p className="text-xs text-slate-300">
-                    สลับทิศทางการวนรอบ จากตามเข็มนาฬิกาเป็นทวนเข็มนาฬิกา (หรือในทางกลับกัน)
+                    สลับทิศทางการวนรอบ (ตามเข็ม ↻ ↔ ทวนเข็ม ↺)
                   </p>
                 </div>
               </div>
@@ -191,9 +200,46 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                 <div>
                   <h5 className="font-bold text-white">WILD (เปลี่ยนสี)</h5>
                   <p className="text-xs text-slate-300">
-                    สามารถลงทับไพ่สีใดก็ได้ เมื่อลงแล้วผู้เล่นจะได้สิทธิ์เลือกสีนำรอบถัดไป (แดง, น้ำเงิน, เขียว, เหลือง)
+                    ลงทับไพ่สีใดก็ได้ และเลือกเปลี่ยนสีนำของเกม
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'STACKING' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/40 space-y-2">
+                <h4 className="font-bold text-amber-300 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                  <span>กฎการทับการ์ดจั่ว (Stacking Rules)</span>
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-200">
+                  เมื่อมีผู้เล่นลงการ์ด +2 หรือ +4 ผู้เล่นคนถัดไปสามารถเลือกที่จะลงการ์ดจั่วทับเพื่อส่งต่อและเพิ่มยอดสะสมได้:
+                </p>
+              </div>
+
+              <div className="space-y-2.5 text-xs text-slate-300 font-mono">
+                <div className="p-3 bg-slate-900/90 rounded-xl border border-emerald-500/30 flex items-center gap-3">
+                  <span className="text-emerald-400 font-black text-sm">✅ +2 ทับ +2:</span>
+                  <span>ยอดจั่วสะสมเพิ่มขึ้นเป็น +4, +6, +8 ...</span>
+                </div>
+                <div className="p-3 bg-slate-900/90 rounded-xl border border-emerald-500/30 flex items-center gap-3">
+                  <span className="text-emerald-400 font-black text-sm">✅ +4 ทับ +2:</span>
+                  <span>ยอดจั่วสะสมจาก +2 จะเพิ่มขึ้นเป็น +6</span>
+                </div>
+                <div className="p-3 bg-slate-900/90 rounded-xl border border-emerald-500/30 flex items-center gap-3">
+                  <span className="text-emerald-400 font-black text-sm">✅ +4 ทับ +4:</span>
+                  <span>ยอดจั่วสะสมเพิ่มขึ้นเป็น +8, +12, +16 ...</span>
+                </div>
+                <div className="p-3 bg-slate-900/90 rounded-xl border border-rose-500/30 flex items-center gap-3 text-rose-200">
+                  <span className="text-rose-400 font-black text-sm">❌ +2 ทับ +4:</span>
+                  <span>ไม่สามารถลง +2 ทับบน +4 ได้</span>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-white/10 text-xs text-slate-300">
+                ⚠️ หากผู้เล่นคนใดไม่มีการ์ดที่สามารถทับต่อได้ จะต้องกดยอมรับบทลงโทษ <strong>จั่วไพ่ตามยอดสะสมทั้งหมด</strong> และเสียตาเล่นรอบนั้นทันที
               </div>
             </div>
           )}
@@ -206,40 +252,54 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                   <span>ไพ่โจทย์สมการฟิสิกส์ (EQUATION CARD "E")</span>
                 </h4>
                 <p className="text-xs text-slate-300">
-                  เมื่อมีผู้เล่นลงการ์ดโจทย์ E เกมจะเข้าสู่โหมด <strong>Challenge Terminal</strong>:
+                  เมื่อมีผู้เล่นลงการ์ดโจทย์ E เกมจะเข้าสู่โหมดประลองคำนวณ SHM Challenge:
                 </p>
               </div>
 
-              <div className="space-y-2 text-xs text-slate-300">
+              <div className="space-y-2.5 text-xs text-slate-300">
                 <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <strong className="text-cyan-300">ขั้นตอนที่ 1 (ใส่ตัวแปร):</strong> ระบบจะสุ่มผู้เล่นมาเป็นผู้ใส่การ์ดตัวเลขตามสีของตัวแปรในสูตร (เช่น ค่านิจสปริง k สีเขียว, มวล m สีเหลือง)
+                  <strong className="text-cyan-300">ขั้นตอนที่ 1 (เติมตัวแปร):</strong> ผู้เล่นตามที่สุ่มได้นำไพ่ตัวเลข (0–9 สีใดก็ได้) จากมือมาเติมในช่องว่าง
                 </div>
                 <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <strong className="text-amber-300">ขั้นตอนที่ 2 (แย่งกันกดตอบ):</strong> เมื่อตัวแปรครบ ทุกคนจะเห็นโจทย์และสูตรคำนวณ ใครคิดคำตอบได้ก่อนให้กดปุ่ม <strong>THE ANSWER IS!</strong>
+                  <strong className="text-amber-300">ขั้นตอนที่ 2 (ชิงกดตอบ):</strong> เมื่อเติมค่าครบ ใครคำนวณคำตอบได้ก่อน ให้กดปุ่ม <strong>THE ANSWER IS!</strong> และพิมพ์คำตอบ
                 </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <strong className="text-emerald-300">ผลลัพธ์:</strong> คนที่ตอบถูกจะได้สิทธิ์ <strong>ทิ้งไพ่ 1 ใบฟรี</strong> ส่วนคนที่ตอบผิดจะถูกลงโทษจั่ว 1 ใบ!
+                <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10 space-y-1">
+                  <strong className="text-emerald-300">รางวัลตอบถูก (ฟรี Discard):</strong>
+                  <ul className="list-disc list-inside ml-2 space-y-0.5 text-slate-200">
+                    <li>ความยาก Easy: <strong>ทิ้งไพ่ฟรี 1 ใบ</strong></li>
+                    <li>ความยาก Medium: <strong>ทิ้งไพ่ฟรี 1 ใบ</strong></li>
+                    <li>ความยาก Hard: <strong>ทิ้งไพ่ฟรี 2 ใบ</strong></li>
+                  </ul>
+                </div>
+                <div className="p-3 bg-slate-900/80 rounded-xl border border-rose-500/30 text-rose-200">
+                  <strong>บทลงโทษตอบผิด:</strong> ถูกปรับจั่วไพ่ 1 ใบ และหมดสิทธิ์ตอบในข้อนั้น
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'HARMONIC' && (
+          {activeTab === 'MODES' && (
             <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-500/40 space-y-2">
+                <h4 className="font-bold text-purple-200">🏆 โหมดการจบเกม 2 รูปแบบ:</h4>
+                <div className="space-y-2 text-xs text-slate-200">
+                  <div className="p-2.5 bg-slate-900/90 rounded-xl border border-white/10">
+                    <span className="font-bold text-amber-300">1. โหมดหาผู้ชนะ (First-to-Empty):</span> ใครไพ่หมดมือก่อน ชนะเกมทันที เกมจบเลย!
+                  </div>
+                  <div className="p-2.5 bg-slate-900/90 rounded-xl border border-white/10">
+                    <span className="font-bold text-rose-300">2. โหมดหาผู้อ่อนแอ (Last-Player-Standing):</span> คนที่ไพ่หมดมือจะได้รับอันดับ 1st, 2nd, ... และออกจากเกม ผู้เล่นที่เหลือจะเล่นต่อไปเรื่อยๆ จนเหลือคนสุดท้ายที่ไพ่ไม่หมด จะเป็น "ผู้อ่อนแอ" (Loser)
+                  </div>
+                </div>
+              </div>
+
               <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/40 space-y-2">
-                <h4 className="font-bold text-amber-200 flex items-center gap-2">
+                <h4 className="font-bold text-amber-300 flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-amber-400" />
                   <span>กฎการพูด HARMONIC เมื่อเหลือไพ่ 1 ใบ!</span>
                 </h4>
                 <p className="text-xs text-slate-300">
                   เมื่อคุณลงไพ่จนเหลือไพ่ในมือเพียง <strong>1 ใบสุดท้าย</strong> คุณต้องกดปุ่ม <strong>"HARMONIC!"</strong> ทันที
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-xs text-rose-200 space-y-1.5">
-                <h5 className="font-bold">🚨 การจับคนลืมพูด HARMONIC:</h5>
-                <p>
-                  หากผู้เล่นคนใดเหลือไพ่ 1 ใบแล้วลืมกดปุ่ม HARMONIC ผู้เล่นคนอื่นสามารถกดปุ่ม <strong>"จับคนลืม HARMONIC"</strong> เพื่อลงโทษให้ผู้เล่นคนนั้นต้องจั่วไพ่เพิ่ม 2 ใบได้ทันที!
+                  หากลืมกดและถูกผู้เล่นคนอื่นกดจับได้ จะถูกลงโทษ <strong>จั่วไพ่เพิ่ม 2 ใบ</strong>
                 </p>
               </div>
             </div>

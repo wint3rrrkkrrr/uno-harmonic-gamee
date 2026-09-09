@@ -6,7 +6,9 @@ import {
   EquationActiveState,
   EquationCard,
   EquationResultState,
+  FinishedPlayer,
   GameLogEntry,
+  GameMode,
   GamePhase,
   GameState,
   OnlineRoomInfo,
@@ -75,12 +77,26 @@ export default function App() {
     isReady?: boolean;
   } | null>(null);
   const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [localSinglePlayerId, setLocalSinglePlayerId] = useState<string | null>(() => {
+    try {
+      const saved = loadSavedGameState();
+      if (saved && saved.players) {
+        const human = saved.players.find((p) => !p.isBot);
+        return human ? human.id : null;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
   const supabaseUnsubRef = useRef<(() => void) | null>(null);
 
   // Check saved game on mount: auto-resume if game was actively running
   useEffect(() => {
     const saved = loadSavedGameState();
     if (saved && saved.gamePhase !== 'GAME_OVER' && saved.gamePhase !== 'MENU') {
+      const human = saved.players.find((p) => !p.isBot) || saved.players[0];
+      if (human) setLocalSinglePlayerId(human.id);
       setGameState(saved);
       showToast('🔄 กู้คืนเกมที่เล่นอยู่เรียบร้อยแล้ว');
     }
@@ -463,6 +479,9 @@ export default function App() {
       currentEquationState: null,
       drawnCardChoice: null,
       gamePhase: 'PLAYING',
+      gameMode: 'FIND_WINNER',
+      pendingDraw: 0,
+      finishedPlayers: [],
       winner: null,
       turnsCount: 1,
       logs: initialLogs,
@@ -479,7 +498,8 @@ export default function App() {
 
   // ================= START GAME / NEW GAME (SINGLEPLAYER) =================
   const handleStartNewGame = (
-    configs: { name: string; letter: PlayerLetter; isBot: boolean }[]
+    configs: { name: string; letter: PlayerLetter; isBot: boolean }[],
+    selectedMode: GameMode = 'FIND_WINNER'
   ) => {
     const deck = createMainDeck();
     const equationDeck = shuffle(
@@ -513,17 +533,22 @@ export default function App() {
       attempts++;
     }
 
+    const modeText =
+      selectedMode === 'FIND_LOSER'
+        ? 'โหมด: ผู้เหลือไพ่คนสุดท้าย (Last Man Standing)'
+        : 'โหมด: ใครหมดก่อนชนะ (First to Finish)';
+
     const startAnnouncement: ActionAnnouncement = {
       id: `ann-${Date.now()}`,
       title: '🎮 เริ่มเกม HARMONIC!',
-      subtitle: `แจกไพ่คนละ 7 ใบ ไพ่ใบแรกคือ ${firstCard.color} ${firstCard.value ?? firstCard.type}`,
+      subtitle: `${modeText} | ไพ่ใบแรกคือ ${firstCard.color} ${firstCard.value ?? firstCard.type}`,
       type: 'INFO',
       card: firstCard,
       durationMs: 2500,
     };
 
     const initialLogs: GameLogEntry[] = [
-      createLog('🎮 เกม HARMONIC เริ่มต้นขึ้นแล้ว! แจกไพ่คนละ 7 ใบ', 'info'),
+      createLog(`🎮 เกม HARMONIC เริ่มต้นขึ้นแล้ว! (${modeText}) แจกไพ่คนละ 7 ใบ`, 'info'),
       createLog(`ไพ่ใบแรกบนกองทิ้งคือ ${firstCard.color} ${firstCard.value ?? firstCard.type}`, 'play'),
     ];
 
@@ -539,6 +564,9 @@ export default function App() {
       currentEquationState: null,
       drawnCardChoice: null,
       gamePhase: 'PLAYING',
+      gameMode: selectedMode,
+      pendingDraw: 0,
+      finishedPlayers: [],
       winner: null,
       turnsCount: 1,
       logs: initialLogs,
@@ -546,6 +574,8 @@ export default function App() {
       actionAnnouncement: startAnnouncement,
     };
 
+    const human = players.find((p) => !p.isBot) || players[0];
+    setLocalSinglePlayerId(human.id);
     setGameState(newState);
     setHasSavedGame(true);
   };
@@ -553,6 +583,8 @@ export default function App() {
   const handleContinueGame = () => {
     const saved = loadSavedGameState();
     if (saved) {
+      const human = saved.players.find((p) => !p.isBot) || saved.players[0];
+      if (human) setLocalSinglePlayerId(human.id);
       setGameState(saved);
       showToast('💾 โหลดเกมที่บันทึกไว้สำเร็จแล้ว!');
     }
@@ -588,9 +620,49 @@ export default function App() {
     };
   };
 
+  // Helper: Find next active player index (skipping finished players)
+  const getNextActivePlayerIndex = (
+    players: Player[],
+    currentIndex: number,
+    direction: 1 | -1,
+    steps: number = 1
+  ): number => {
+    const total = players.length;
+    const activePlayers = players.filter((p) => !p.isFinished && p.hand.length > 0);
+    if (activePlayers.length <= 1) return currentIndex;
+
+    let nextIdx = currentIndex;
+    let countedSteps = 0;
+    let safety = 0;
+
+    while (countedSteps < steps && safety < total * 4) {
+      safety++;
+      nextIdx = (nextIdx + direction + total) % total;
+      const candidate = players[nextIdx];
+      if (candidate && !candidate.isFinished && candidate.hand.length > 0) {
+        countedSteps++;
+      }
+    }
+    return nextIdx;
+  };
+
+  // Helper: Get target player index for penalty cards (+2, SKIP) skipping finished players
+  const getNextTargetPlayerIndex = (
+    players: Player[],
+    currentIndex: number,
+    direction: 1 | -1
+  ): number => {
+    return getNextActivePlayerIndex(players, currentIndex, direction, 1);
+  };
+
   // Turn Advancement
   const advanceTurn = useCallback(
-    (prevState: GameState, step = 1, customWinner: Player | null = null): GameState => {
+    (
+      prevState: GameState,
+      step = 1,
+      customWinner: Player | null = null,
+      customLoser: Player | null = null
+    ): GameState => {
       if (customWinner) {
         return {
           ...prevState,
@@ -600,9 +672,27 @@ export default function App() {
         };
       }
 
-      const totalPlayers = prevState.players.length;
-      const nextIndex =
-        (prevState.currentPlayerIndex + prevState.direction * step + totalPlayers * 100) % totalPlayers;
+      if (customLoser) {
+        return {
+          ...prevState,
+          gamePhase: 'GAME_OVER',
+          loser: customLoser,
+          logs: [
+            createLog(
+              `💀 LAST MAN STANDING! ผู้เล่น ${customLoser.name} เป็นผู้เหลือไพ่คนสุดท้าย (Loser)!`,
+              'penalty'
+            ),
+            ...prevState.logs,
+          ],
+        };
+      }
+
+      const nextIndex = getNextActivePlayerIndex(
+        prevState.players,
+        prevState.currentPlayerIndex,
+        prevState.direction,
+        step
+      );
 
       return {
         ...prevState,
@@ -660,7 +750,7 @@ export default function App() {
     const updatedPlayers = [...st.players];
     updatedPlayers[st.currentPlayerIndex] = updatedPlayer;
 
-    // Check Win Condition: Hand is empty!
+    // Check Win/Finish Condition: Hand is empty!
     if (updatedHand.length === 0) {
       st = {
         ...st,
@@ -669,19 +759,87 @@ export default function App() {
         currentColor: card.color === 'WILD' ? st.currentColor : card.color,
       };
 
-      const winAnnouncement: ActionAnnouncement = {
-        id: `ann-${Date.now()}`,
-        title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
-        subtitle: 'ลงไพ่ในมือจนหมดเกลี้ยง จบการประลอง SHM',
-        type: 'WIN',
-        card,
-        durationMs: 4000,
-      };
+      if (st.gameMode === 'FIND_LOSER') {
+        // Mode: Find Loser (Last Man Standing)
+        const prevFinished = st.finishedPlayers || [];
+        const nextRank = prevFinished.length + 1;
+        const finishedRecord: FinishedPlayer = {
+          player: updatedPlayer,
+          rank: nextRank,
+          finishTime: Date.now(),
+        };
+        const updatedFinished = [...prevFinished, finishedRecord];
 
-      const finalState = { ...advanceTurn(st, 1, updatedPlayer), actionAnnouncement: winAnnouncement };
-      setGameState(finalState);
-      syncOnlineGameState(finalState, winAnnouncement);
-      return;
+        // Mark player as finished
+        const finalizedPlayers = updatedPlayers.map((p) =>
+          p.id === updatedPlayer.id ? { ...p, isFinished: true, finishRank: nextRank } : p
+        );
+        st.players = finalizedPlayers;
+        st.finishedPlayers = updatedFinished;
+
+        const remainingActive = finalizedPlayers.filter(
+          (p) => !p.isFinished && p.hand.length > 0
+        );
+
+        if (remainingActive.length <= 1) {
+          // Exactly 1 or 0 remaining -> Game Ends, Last player is LOSER!
+          const loserPlayer = remainingActive[0] || null;
+          const endAnnouncement: ActionAnnouncement = {
+            id: `ann-${Date.now()}`,
+            title: `💀 จบการแข่งขัน LAST MAN STANDING!`,
+            subtitle: loserPlayer
+              ? `ผู้เหลือไพ่คนสุดท้ายคือ ${loserPlayer.name} (Loser)!`
+              : 'จบการแข่งขัน',
+            type: 'PENALTY',
+            card,
+            durationMs: 4500,
+          };
+          const finalState: GameState = {
+            ...advanceTurn(st, 1, null, loserPlayer),
+            actionAnnouncement: endAnnouncement,
+          };
+          setGameState(finalState);
+          syncOnlineGameState(finalState, endAnnouncement);
+          return;
+        } else {
+          // More than 1 player remaining -> Announce finish and continue game
+          const finishAnnouncement: ActionAnnouncement = {
+            id: `ann-${Date.now()}`,
+            title: `🎉 ${player.name} ทิ้งไพ่หมดมือแล้ว! (อันดับ #${nextRank})`,
+            subtitle: `ผ่านเข้ารอบสำเร็จ! การแข่งขันดำเนินต่อเพื่อหาผู้เหลือไพ่คนสุดท้าย...`,
+            type: 'SPECIAL',
+            card,
+            durationMs: 3200,
+          };
+          st.actionAnnouncement = finishAnnouncement;
+          st.logs = [
+            createLog(
+              `🎉 Player ${player.letter} (${player.name}) ทิ้งไพ่หมดมือ ได้อันดับ #${nextRank}! (เหลือผู้เล่นอีก ${remainingActive.length} คน)`,
+              'win'
+            ),
+            ...st.logs,
+          ];
+          const nextState = advanceTurn(st, 1);
+          setGameState(nextState);
+          syncOnlineGameState(nextState, finishAnnouncement);
+          return;
+        }
+      } else {
+        // Mode: Find Winner (First to empty hand wins!)
+        const winAnnouncement: ActionAnnouncement = {
+          id: `ann-${Date.now()}`,
+          title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
+          subtitle: 'ลงไพ่ในมือจนหมดเกลี้ยง จบการประลอง SHM',
+          type: 'WIN',
+          card,
+          durationMs: 4000,
+        };
+
+        const finalState = { ...advanceTurn(st, 1, updatedPlayer), actionAnnouncement: winAnnouncement };
+        setGameState(finalState);
+        syncOnlineGameState(finalState, winAnnouncement);
+        return;
+      }
     }
 
     // Check 1 Card warning
@@ -768,15 +926,15 @@ export default function App() {
     } else if (card.type === 'DRAW_TWO') {
       // +2 ENERGY LOSS
       st = ensureDeckCards(st, 2);
-      const nextPlayerIdx = (st.currentPlayerIndex + st.direction + st.players.length) % st.players.length;
-      const targetPlayer = st.players[nextPlayerIdx];
+      const targetPlayerIdx = getNextTargetPlayerIndex(st.players, st.currentPlayerIndex, st.direction);
+      const targetPlayer = st.players[targetPlayerIdx];
       const drawnCards = st.deck.splice(0, 2);
 
       const targetUpdated: Player = {
         ...targetPlayer,
         hand: [...targetPlayer.hand, ...drawnCards],
       };
-      st.players[nextPlayerIdx] = targetUpdated;
+      st.players[targetPlayerIdx] = targetUpdated;
 
       const announcement: ActionAnnouncement = {
         id: `ann-${Date.now()}`,
@@ -799,8 +957,8 @@ export default function App() {
       syncOnlineGameState(nextState, announcement);
     } else if (card.type === 'SKIP') {
       // SKIP EQUILIBRIUM STOP
-      const nextPlayerIdx = (st.currentPlayerIndex + st.direction + st.players.length) % st.players.length;
-      const targetPlayer = st.players[nextPlayerIdx];
+      const targetPlayerIdx = getNextTargetPlayerIndex(st.players, st.currentPlayerIndex, st.direction);
+      const targetPlayer = st.players[targetPlayerIdx];
 
       const announcement: ActionAnnouncement = {
         id: `ann-${Date.now()}`,
@@ -844,7 +1002,8 @@ export default function App() {
         ),
         ...st.logs,
       ];
-      const step = st.players.length === 2 ? 2 : 1;
+      const activeCount = st.players.filter((p) => !p.isFinished && p.hand.length > 0).length;
+      const step = activeCount === 2 ? 2 : 1;
       const nextState = advanceTurn(st, step);
       setGameState(nextState);
       syncOnlineGameState(nextState, announcement);
@@ -1395,27 +1554,100 @@ export default function App() {
       p.id === playerId ? { ...p, hand: updatedHand } : p
     );
 
-    // Check Win Condition: Player emptied hand with free discard!
+    // Check Win/Finish Condition: Player emptied hand with free discard!
     if (updatedHand.length === 0) {
-      const winAnnouncement: ActionAnnouncement = {
-        id: `ann-${Date.now()}`,
-        title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
-        subtitle: 'ใช้สิทธิ์ทิ้งไพ่ฟรีจากสมการ SHM จนหมดมือเกลี้ยง!',
-        type: 'WIN',
-        card: discardedCard,
-        durationMs: 4500,
-      };
-      const finalState: GameState = {
-        ...gameState,
-        gamePhase: 'GAME_OVER',
-        winner: player,
-        players: updatedPlayers,
-        actionAnnouncement: winAnnouncement,
-        currentEquationState: null,
-      };
-      setGameState(finalState);
-      syncOnlineGameState(finalState, winAnnouncement);
-      return;
+      if (gameState.gameMode === 'FIND_LOSER') {
+        const prevFinished = gameState.finishedPlayers || [];
+        const nextRank = prevFinished.length + 1;
+        const finishedRecord: FinishedPlayer = {
+          player: { ...player, hand: [] },
+          rank: nextRank,
+          finishTime: Date.now(),
+        };
+        const updatedFinished = [...prevFinished, finishedRecord];
+
+        const finalizedPlayers = updatedPlayers.map((p) =>
+          p.id === playerId ? { ...p, isFinished: true, finishRank: nextRank } : p
+        );
+
+        const remainingActive = finalizedPlayers.filter(
+          (p) => !p.isFinished && p.hand.length > 0
+        );
+
+        if (remainingActive.length <= 1) {
+          const loserPlayer = remainingActive[0] || null;
+          const endAnnouncement: ActionAnnouncement = {
+            id: `ann-${Date.now()}`,
+            title: `💀 จบการแข่งขัน LAST MAN STANDING!`,
+            subtitle: loserPlayer
+              ? `ผู้เหลือไพ่คนสุดท้ายคือ ${loserPlayer.name} (Loser)!`
+              : 'จบการแข่งขัน',
+            type: 'PENALTY',
+            card: discardedCard,
+            durationMs: 4500,
+          };
+          const finalState: GameState = {
+            ...gameState,
+            gamePhase: 'GAME_OVER',
+            loser: loserPlayer,
+            players: finalizedPlayers,
+            finishedPlayers: updatedFinished,
+            discardPile: [...gameState.discardPile, discardedCard],
+            actionAnnouncement: endAnnouncement,
+            currentEquationState: null,
+          };
+          setGameState(finalState);
+          syncOnlineGameState(finalState, endAnnouncement);
+          return;
+        } else {
+          const finishAnnouncement: ActionAnnouncement = {
+            id: `ann-${Date.now()}`,
+            title: `🎉 ${player.name} ทิ้งไพ่ฟรีจนหมดมือ! (อันดับ #${nextRank})`,
+            subtitle: `ผ่านเข้ารอบสำเร็จ! การแข่งขันดำเนินต่อ...`,
+            type: 'SPECIAL',
+            card: discardedCard,
+            durationMs: 3200,
+          };
+          const nextState: GameState = {
+            ...gameState,
+            players: finalizedPlayers,
+            finishedPlayers: updatedFinished,
+            discardPile: [...gameState.discardPile, discardedCard],
+            actionAnnouncement: finishAnnouncement,
+            currentEquationState: null,
+            logs: [
+              createLog(
+                `🎉 Player ${player.letter} (${player.name}) ทิ้งไพ่ฟรีจากสมการจนหมดมือ ได้อันดับ #${nextRank}!`,
+                'win'
+              ),
+              ...gameState.logs,
+            ],
+          };
+          setGameState(nextState);
+          syncOnlineGameState(nextState, finishAnnouncement);
+          return;
+        }
+      } else {
+        const winAnnouncement: ActionAnnouncement = {
+          id: `ann-${Date.now()}`,
+          title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
+          subtitle: 'ใช้สิทธิ์ทิ้งไพ่ฟรีจากสมการ SHM จนหมดมือเกลี้ยง!',
+          type: 'WIN',
+          card: discardedCard,
+          durationMs: 4500,
+        };
+        const finalState: GameState = {
+          ...gameState,
+          gamePhase: 'GAME_OVER',
+          winner: player,
+          players: updatedPlayers,
+          actionAnnouncement: winAnnouncement,
+          currentEquationState: null,
+        };
+        setGameState(finalState);
+        syncOnlineGameState(finalState, winAnnouncement);
+        return;
+      }
     }
 
     const updatedResult = {
@@ -1633,7 +1865,11 @@ export default function App() {
   ]);
 
   // Determine which player is the local viewer on this browser
-  const localPlayerId = localOnlinePlayer?.id || gameState?.players[0]?.id;
+  const localPlayerId =
+    localOnlinePlayer?.id ||
+    localSinglePlayerId ||
+    gameState?.players.find((p) => !p.isBot)?.id ||
+    gameState?.players[0]?.id;
 
   // ================= MAIN RENDER =================
   return (
@@ -1767,6 +2003,9 @@ export default function App() {
       {gameState?.gamePhase === 'GAME_OVER' && (
         <GameOverModal
           winner={gameState.winner}
+          loser={gameState.loser}
+          gameMode={gameState.gameMode}
+          finishedPlayers={gameState.finishedPlayers}
           turnsCount={gameState.turnsCount}
           players={gameState.players}
           onPlayAgain={() => {
@@ -1778,7 +2017,7 @@ export default function App() {
                 letter: p.letter,
                 isBot: p.isBot,
               }));
-              handleStartNewGame(configs);
+              handleStartNewGame(configs, gameState.gameMode);
             }
           }}
           onBackToMenu={handleResetGame}

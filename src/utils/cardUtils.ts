@@ -12,20 +12,12 @@ export function createMainDeck(): Card[] {
   const cards: Card[] = [];
   let cardSeq = 1;
 
-  // Number cards (0 once, 1-9 twice per color)
+  // Number cards (0-9 twice per color = 80 cards)
   for (const color of COLORS) {
-    // 0 once
-    cards.push({
-      id: `c-${cardSeq++}-${color}-0`,
-      color,
-      type: 'NUMBER',
-      value: 0,
-    });
-    // 1-9 twice
     for (let count = 0; count < 2; count++) {
-      for (let num = 1; num <= 9; num++) {
+      for (let num = 0; num <= 9; num++) {
         cards.push({
-          id: `c-${cardSeq++}-${color}-${num}`,
+          id: `c-${cardSeq++}-${color}-${num}-${count}`,
           color,
           type: 'NUMBER',
           value: num,
@@ -34,10 +26,10 @@ export function createMainDeck(): Card[] {
     }
   }
 
-  // Special cards (2 of each color for +2, SKIP, REVERSE, E)
+  // Special Action cards (2 of each color for +2, SKIP, REVERSE, E)
   for (const color of COLORS) {
     for (let i = 0; i < 2; i++) {
-      // +2
+      // +2 (DRAW_TWO)
       cards.push({
         id: `c-${cardSeq++}-${color}-DRAW2-${i}`,
         color,
@@ -73,6 +65,15 @@ export function createMainDeck(): Card[] {
     });
   }
 
+  // 4 WILD +4 (WILD_DRAW_FOUR) cards
+  for (let i = 0; i < 4; i++) {
+    cards.push({
+      id: `c-${cardSeq++}-WILD4-${i}`,
+      color: 'WILD',
+      type: 'WILD_DRAW_FOUR',
+    });
+  }
+
   return shuffle(cards);
 }
 
@@ -91,8 +92,20 @@ export function shuffle<T>(array: T[]): T[] {
 /**
  * Checks if a card is legally playable on the current discard top card
  */
-export function canPlayCard(card: Card, topCard: Card, currentColor: CardColor): boolean {
-  if (card.type === 'WILD') {
+export function canPlayCard(
+  card: Card,
+  topCard: Card,
+  currentColor: CardColor,
+  pendingDraw: number = 0
+): boolean {
+  // If there is an active pending draw (+2 or +4 stack active):
+  if (pendingDraw > 0) {
+    // Only +2 (DRAW_TWO) and +4 (WILD_DRAW_FOUR) can be stacked!
+    return card.type === 'DRAW_TWO' || card.type === 'WILD_DRAW_FOUR';
+  }
+
+  // Wild and Wild+4 can be played on any card
+  if (card.type === 'WILD' || card.type === 'WILD_DRAW_FOUR') {
     return true;
   }
 

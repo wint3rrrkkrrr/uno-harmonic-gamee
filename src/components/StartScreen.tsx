@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PlayerLetter } from '../types/game';
+import { GameMode, PlayerLetter } from '../types/game';
 import { PLAYER_LETTERS } from '../utils/cardUtils';
 import {
   Globe,
@@ -13,10 +13,15 @@ import {
   Users,
   ChevronLeft,
   Zap,
+  Trophy,
+  Skull,
 } from 'lucide-react';
 
 interface StartScreenProps {
-  onStartNewGame: (playersConfig: { name: string; letter: PlayerLetter; isBot: boolean }[]) => void;
+  onStartNewGame: (
+    playersConfig: { name: string; letter: PlayerLetter; isBot: boolean }[],
+    gameMode: GameMode
+  ) => void;
   onOpenOnlineLobby: () => void;
   onOpenHowToPlay: () => void;
   onOpenAbout: () => void;
@@ -32,6 +37,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
   const [playerCount, setPlayerCount] = useState<number>(4);
   const [userName, setUserName] = useState<string>('ผู้เล่น (คุณ)');
   const [chosenSeat, setChosenSeat] = useState<'RANDOM' | number>(0);
+  const [gameMode, setGameMode] = useState<GameMode>('FIND_WINNER');
 
   const handleLaunchBotGame = () => {
     let humanIndex: number;
@@ -51,7 +57,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({
       };
     });
 
-    onStartNewGame(configs);
+    onStartNewGame(configs, gameMode);
   };
 
   return (
@@ -344,6 +350,60 @@ export const StartScreen: React.FC<StartScreenProps> = ({
                   ? '🎲 ระบบจะสุ่มลำดับรอบการเล่นให้คุณอัตโนมัติ'
                   : `⏳ คุณจะได้เล่นเป็นลำดับที่ ${Number(chosenSeat) + 1} (บอทอื่นจะเริ่มเล่นก่อน)`}
               </p>
+            </div>
+
+            {/* Game Mode Selection */}
+            <div className="space-y-1.5 text-left">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider">
+                  กติกาการจบเกม (GAME MODE):
+                </label>
+                <span className="text-[11px] font-mono font-bold text-amber-300">
+                  {gameMode === 'FIND_WINNER' ? '🏆 หาผู้ชนะคนแรก' : '💀 ผู้เหลือไพ่คนสุดท้าย'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGameMode('FIND_WINNER')}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+                    gameMode === 'FIND_WINNER'
+                      ? 'border-amber-400/80 bg-gradient-to-br from-amber-500/20 to-amber-950/40 shadow-lg shadow-amber-500/10 ring-2 ring-amber-400/40'
+                      : 'border-white/10 bg-slate-900/80 hover:bg-slate-850 opacity-75 hover:opacity-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`p-1.5 rounded-xl ${gameMode === 'FIND_WINNER' ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'}`}>
+                      <Trophy className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-black text-white">ใครหมดก่อนชนะ</span>
+                  </div>
+                  <p className="text-[10px] text-slate-300 leading-tight">
+                    คนแรกที่ทิ้งไพ่หมดมือ ชนะเกมและจบการแข่งขันทัันที
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setGameMode('FIND_LOSER')}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+                    gameMode === 'FIND_LOSER'
+                      ? 'border-rose-400/80 bg-gradient-to-br from-rose-500/20 to-rose-950/40 shadow-lg shadow-rose-500/10 ring-2 ring-rose-400/40'
+                      : 'border-white/10 bg-slate-900/80 hover:bg-slate-850 opacity-75 hover:opacity-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`p-1.5 rounded-xl ${gameMode === 'FIND_LOSER' ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-300'}`}>
+                      <Skull className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-black text-white">ผู้เหลือไพ่คนสุดท้าย</span>
+                  </div>
+                  <p className="text-[10px] text-slate-300 leading-tight">
+                    คนหมดมือจะออกและได้อันดับ เล่นต่อจนเหลือคนสุดท้าย (Loser)
+                  </p>
+                </button>
+              </div>
             </div>
 
             {/* Launch Game Button */}

@@ -201,6 +201,9 @@ export async function createRoomInSupabase(
     currentEquationState: null,
     drawnCardChoice: null,
     gamePhase: 'LOBBY',
+    gameMode: 'FIND_WINNER',
+    pendingDraw: 0,
+    finishedPlayers: [],
     winner: null,
     turnsCount: 0,
     logs: [
