@@ -30,54 +30,48 @@ export const CardView: React.FC<CardViewProps> = ({
   className = '',
   countBadge,
 }) => {
-  // Proportional standard card aspect ratio 63:88
+  // Proportional standard card aspect ratio 63:88 with optimized mobile touch dimensions
   const sizeClasses = {
-    mini: 'w-10 h-14 text-xs rounded-md',
-    sm: 'w-14 h-20 text-xs rounded-xl',
-    md: 'w-20 h-28 sm:w-24 sm:h-34 text-sm rounded-2xl',
-    lg: 'w-28 h-40 sm:w-32 sm:h-46 text-base rounded-2xl',
+    mini: 'w-9 h-13 text-[10px] rounded-lg',
+    sm: 'w-12 h-17 sm:w-14 sm:h-20 text-xs rounded-xl',
+    md: 'w-[4.75rem] h-[6.85rem] sm:w-24 sm:h-34 text-xs sm:text-sm rounded-2xl',
+    lg: 'w-24 h-34 sm:w-32 sm:h-46 text-sm sm:text-base rounded-2xl',
   }[size];
 
   // ----------------------------------------------------
-  // CARD BACK: Luxury Quantum Physics Emblem
+  // CARD BACK: Sleek Minimal Physics Emblem
   // ----------------------------------------------------
   if (isBack || !card) {
     return (
       <div
         onClick={onClick}
-        className={`relative ${sizeClasses} aspect-[63/88] bg-gradient-to-br from-slate-950 via-[#0a0e20] to-indigo-950/90 border border-indigo-400/30 shadow-2xl select-none flex flex-col items-center justify-center overflow-hidden transition-all duration-300 ${
+        className={`relative ${sizeClasses} aspect-[63/88] bg-slate-900 border border-indigo-500/30 shadow-xl select-none flex flex-col items-center justify-center overflow-hidden transition-all duration-200 active:scale-95 ${
           onClick
-            ? 'cursor-pointer hover:-translate-y-2 hover:border-cyan-400/80 hover:shadow-cyan-500/30 hover:shadow-2xl'
+            ? 'cursor-pointer hover:border-cyan-400 hover:shadow-cyan-500/25 hover:shadow-xl'
             : ''
         } ${className}`}
       >
-        {/* Subtle holographic foil grid */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:10px_10px]" />
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 opacity-15 pointer-events-none bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:8px_8px]" />
 
-        {/* Double Inset Gold/Cyan Border */}
-        <div className="absolute inset-1.5 rounded-xl border border-indigo-400/25 pointer-events-none" />
-        <div className="absolute inset-2.5 rounded-lg border border-cyan-400/15 pointer-events-none" />
+        {/* Minimal inner border */}
+        <div className="absolute inset-1.5 rounded-xl border border-white/10 pointer-events-none" />
 
-        {/* Diagonal Gloss Sweep */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-cyan-300/10 pointer-events-none" />
-
-        {/* Orbit Rings */}
-        <div className="relative z-10 flex flex-col items-center justify-center p-2 text-center">
-          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-indigo-900/80 via-cyan-950/80 to-slate-900 border border-cyan-400/40 flex items-center justify-center shadow-lg shadow-cyan-950/60 mb-1 relative">
-            <span className="text-cyan-300 text-base sm:text-lg animate-pulse">∿</span>
-            <div className="absolute inset-0 rounded-full border border-dashed border-cyan-300/30 animate-spin [animation-duration:12s]" />
+        {/* Center Minimal SHM Logo */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center p-1">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-950 border border-cyan-400/40 flex items-center justify-center shadow-md mb-1">
+            <span className="text-cyan-300 text-sm sm:text-base font-bold">∿</span>
           </div>
-
-          <div className="text-[9px] sm:text-[11px] font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-slate-200 via-cyan-200 to-indigo-200 uppercase font-mono">
+          <div className="text-[9px] sm:text-[10px] font-black tracking-widest text-slate-200 uppercase font-mono">
             HARMONIC
           </div>
-          <span className="text-[7px] font-mono tracking-wider text-cyan-400/80 uppercase">
-            SHM PHYSICS
+          <span className="text-[7px] font-mono text-cyan-400/70 tracking-wider">
+            SHM
           </span>
         </div>
 
         {countBadge !== undefined && (
-          <span className="absolute top-1.5 right-1.5 bg-gradient-to-r from-indigo-600 to-cyan-600 border border-cyan-300/60 text-white font-mono font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-lg shadow-indigo-950/80">
+          <span className="absolute top-1.5 right-1.5 bg-cyan-500 text-slate-950 font-mono font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-md">
             {countBadge}
           </span>
         )}

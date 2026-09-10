@@ -104,6 +104,7 @@ export interface EquationActiveState {
   equation: EquationCard;
   currentBlankIndex: number;
   assignedPlayerId: string;
+  hasDrawnForCurrentBlank?: boolean;
   candidatePlayerIndex?: number; // for cascading when player doesn't have required card
   candidatePlayerOrder?: string[]; // order of players to ask
   statusMessage?: string;

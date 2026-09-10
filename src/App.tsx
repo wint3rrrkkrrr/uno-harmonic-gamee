@@ -913,6 +913,71 @@ export default function App() {
       return;
     }
 
+    if (card.type === 'WILD_DRAW_FOUR') {
+      const newPending = (st.pendingDraw || 0) + 4;
+      st.pendingDraw = newPending;
+
+      if (player.isBot) {
+        const availableColors: CardColor[] = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
+        const colorCounts: Record<string, number> = { RED: 0, BLUE: 0, GREEN: 0, YELLOW: 0 };
+        updatedHand.forEach((c) => {
+          if (c.color !== 'WILD') colorCounts[c.color] = (colorCounts[c.color] || 0) + 1;
+        });
+        const chosenColor = availableColors.reduce((a, b) =>
+          colorCounts[a] >= colorCounts[b] ? a : b
+        );
+        st.currentColor = chosenColor;
+
+        const nextTargetIdx = getNextTargetPlayerIndex(st.players, st.currentPlayerIndex, st.direction);
+        const nextTarget = st.players[nextTargetIdx];
+
+        const announcement: ActionAnnouncement = {
+          id: `ann-${Date.now()}`,
+          title: `💥 WILD +4! (สะสมเป็น +${newPending})`,
+          subtitle: `${player.name} เปลี่ยนสีเป็น ${chosenColor} ⟹ ${nextTarget.name} ต้องลง +2/+4 ทับ หรือรับโทษจั่ว ${newPending} ใบ!`,
+          type: 'PENALTY',
+          card,
+          durationMs: 2800,
+        };
+        st.actionAnnouncement = announcement;
+        st.logs = [
+          createLog(
+            `💥 WILD +4! Player ${player.letter} (${player.name}) ลงไพ่ WILD +4 (สะสม +${newPending}) เปลี่ยนเป็นสี ${chosenColor}`,
+            'special'
+          ),
+          ...st.logs,
+        ];
+        const nextState = advanceTurn(st, 1);
+        setGameState(nextState);
+        syncOnlineGameState(nextState, announcement);
+      } else {
+        st.gamePhase = 'WILD_COLOR_PICK';
+        st.wildPickerPlayerId = player.id;
+        st.wildPickerPlayerName = player.name;
+        setWildPickerPlayer(player);
+
+        const announcement: ActionAnnouncement = {
+          id: `ann-${Date.now()}`,
+          title: `💥 WILD +4! (สะสมเป็น +${newPending})`,
+          subtitle: `${player.name} กำลังเลือกสีนำของเกม...`,
+          type: 'SPECIAL',
+          card,
+          durationMs: 2500,
+        };
+        st.actionAnnouncement = announcement;
+        st.logs = [
+          createLog(
+            `💥 WILD +4! Player ${player.letter} (${player.name}) ลงไพ่ WILD +4 (สะสม +${newPending}) และกำลังเลือกสีใหม่`,
+            'special'
+          ),
+          ...st.logs,
+        ];
+        setGameState(st);
+        syncOnlineGameState(st, announcement);
+      }
+      return;
+    }
+
     st.currentColor = card.color;
 
     if (card.type === 'NUMBER') {
@@ -933,22 +998,17 @@ export default function App() {
       setGameState(nextState);
       syncOnlineGameState(nextState, announcement);
     } else if (card.type === 'DRAW_TWO') {
-      // +2 ENERGY LOSS
-      st = ensureDeckCards(st, 2);
+      // +2 ENERGY LOSS (Stackable)
+      const newPending = (st.pendingDraw || 0) + 2;
+      st.pendingDraw = newPending;
+
       const targetPlayerIdx = getNextTargetPlayerIndex(st.players, st.currentPlayerIndex, st.direction);
       const targetPlayer = st.players[targetPlayerIdx];
-      const drawnCards = st.deck.splice(0, 2);
-
-      const targetUpdated: Player = {
-        ...targetPlayer,
-        hand: [...targetPlayer.hand, ...drawnCards],
-      };
-      st.players[targetPlayerIdx] = targetUpdated;
 
       const announcement: ActionAnnouncement = {
         id: `ann-${Date.now()}`,
-        title: `⚡ +2 ENERGY LOSS!`,
-        subtitle: `${player.name} ลงไพ่ +2 ⟹ ${targetPlayer.name} โดนจั่ว 2 ใบ และข้ามตาเล่น!`,
+        title: `⚡ +2 ENERGY LOSS! (สะสมเป็น +${newPending})`,
+        subtitle: `${player.name} ลงไพ่ +2 ⟹ ${targetPlayer.name} สามารถลง +2/+4 ทับต่อ หรือกดยอมรับโทษจั่ว ${newPending} ใบ!`,
         type: 'PENALTY',
         card,
         durationMs: 2800,
@@ -956,12 +1016,12 @@ export default function App() {
       st.actionAnnouncement = announcement;
       st.logs = [
         createLog(
-          `⚡ +2 ENERGY LOSS! Player ${player.letter} ลงไพ่ +2 ⟹ Player ${targetPlayer.letter} (${targetPlayer.name}) ต้องจั่ว 2 ใบ และเสียตาเล่น!`,
+          `⚡ +2 ENERGY LOSS! Player ${player.letter} ลงไพ่ +2 (โทษจั่วสะสมรวม +${newPending}) ส่งต่อไปยัง Player ${targetPlayer.letter} (${targetPlayer.name})`,
           'penalty'
         ),
         ...st.logs,
       ];
-      const nextState = advanceTurn(st, 2);
+      const nextState = advanceTurn(st, 1);
       setGameState(nextState);
       syncOnlineGameState(nextState, announcement);
     } else if (card.type === 'SKIP') {
@@ -1056,9 +1116,9 @@ export default function App() {
   const handleDrawCard = () => {
     if (!gameState || gameState.gamePhase !== 'PLAYING') return;
 
-    let st = ensureDeckCards({ ...gameState }, 1);
+    let st = { ...gameState };
     const player = st.players[st.currentPlayerIndex];
-    if (!player || st.deck.length === 0) return;
+    if (!player) return;
 
     // Turn Guard in online mode: only active player (or host for bots) can draw
     if (gameState.roomId) {
@@ -1072,9 +1132,47 @@ export default function App() {
       }
     }
 
+    // If there is an active stacking penalty (pendingDraw > 0)
+    if (st.pendingDraw > 0) {
+      const penaltyCount = st.pendingDraw;
+      st = ensureDeckCards(st, penaltyCount);
+      const drawnCards = st.deck.splice(0, penaltyCount);
+
+      const updatedPlayer: Player = {
+        ...player,
+        hand: [...player.hand, ...drawnCards],
+      };
+      st.players[st.currentPlayerIndex] = updatedPlayer;
+      st.pendingDraw = 0;
+
+      const announcement: ActionAnnouncement = {
+        id: `ann-${Date.now()}`,
+        title: `💥 รับโทษจั่วสะสม ${penaltyCount} ใบ!`,
+        subtitle: `${player.name} ยอมรับโทษจั่ว ${penaltyCount} ใบ และข้ามตาเล่น`,
+        type: 'PENALTY',
+        durationMs: 3000,
+      };
+      st.actionAnnouncement = announcement;
+      st.logs = [
+        createLog(
+          `💥 Player ${player.letter} (${player.name}) รับโทษจั่วสะสม ${penaltyCount} ใบ และข้ามตาเล่น`,
+          'penalty'
+        ),
+        ...st.logs,
+      ];
+      const nextState = advanceTurn(st, 1);
+      setGameState(nextState);
+      syncOnlineGameState(nextState, announcement);
+      return;
+    }
+
+    // Normal draw 1 card
+    st = ensureDeckCards(st, 1);
+    if (st.deck.length === 0) return;
+
     const drawnCard = st.deck.shift()!;
     const topCard = st.discardPile[st.discardPile.length - 1];
-    const isPlayable = canPlayCard(drawnCard, topCard, st.currentColor);
+    const isPlayable = canPlayCard(drawnCard, topCard, st.currentColor, 0);
 
     const updatedPlayer: Player = {
       ...player,
@@ -1280,27 +1378,74 @@ export default function App() {
     const targetBlank = eqState.equation.blanks[blankIdx];
     targetBlank.filledValue = numberCard.value ?? 1;
 
-    // Check Win Condition: Player emptied their hand filling the equation!
+    // Check Win/Finish Condition: Player emptied their hand filling the equation!
     if (updatedHand.length === 0) {
-      const winAnnouncement: ActionAnnouncement = {
-        id: `ann-${Date.now()}`,
-        title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
-        subtitle: 'ใช้ไพ่ใบสุดท้ายเติมตัวแปรสมการจนหมดมือเกลี้ยง!',
-        type: 'WIN',
-        card: numberCard,
-        durationMs: 4500,
-      };
-      const finalState: GameState = {
-        ...gameState,
-        gamePhase: 'GAME_OVER',
-        winner: player,
-        players: updatedPlayers,
-        actionAnnouncement: winAnnouncement,
-        currentEquationState: null,
-      };
-      setGameState(finalState);
-      syncOnlineGameState(finalState, winAnnouncement);
-      return;
+      if (gameState.gameMode === 'FIND_LOSER') {
+        const prevFinished = gameState.finishedPlayers || [];
+        const nextRank = prevFinished.length + 1;
+        const finishedRecord: FinishedPlayer = {
+          player: { ...player, hand: [] },
+          rank: nextRank,
+          finishTime: Date.now(),
+        };
+        const updatedFinished = [...prevFinished, finishedRecord];
+        const finalizedPlayers = updatedPlayers.map((p) =>
+          p.id === playerId ? { ...p, isFinished: true, finishRank: nextRank } : p
+        );
+
+        const remainingActive = finalizedPlayers.filter(
+          (p) => !p.isFinished && p.hand.length > 0
+        );
+
+        if (remainingActive.length <= 1) {
+          const loserPlayer = remainingActive[0] || null;
+          const endAnnouncement: ActionAnnouncement = {
+            id: `ann-${Date.now()}`,
+            title: `💀 จบการแข่งขัน LAST MAN STANDING!`,
+            subtitle: loserPlayer
+              ? `ผู้เหลือไพ่คนสุดท้ายคือ ${loserPlayer.name} (Loser)!`
+              : 'จบการแข่งขันหาผู้แพ้เรียบร้อยแล้ว!',
+            type: 'WIN',
+            durationMs: 5000,
+          };
+          const gameOverState: GameState = {
+            ...gameState,
+            gamePhase: 'GAME_OVER',
+            winner: loserPlayer,
+            players: finalizedPlayers,
+            finishedPlayers: updatedFinished,
+            actionAnnouncement: endAnnouncement,
+            currentEquationState: null,
+          };
+          setGameState(gameOverState);
+          syncOnlineGameState(gameOverState, endAnnouncement);
+          return;
+        }
+
+        // More players remaining in FIND_LOSER mode
+        showToast(`🎉 ${player.name} ลงไพ่หมดมือแล้ว! ได้อันดับที่ #${nextRank}`);
+      } else {
+        // Standard First-to-Finish mode
+        const winAnnouncement: ActionAnnouncement = {
+          id: `ann-${Date.now()}`,
+          title: `🏆 ${player.name} เป็นผู้ชนะเกม!`,
+          subtitle: 'ใช้ไพ่ใบสุดท้ายเติมตัวแปรสมการจนหมดมือเกลี้ยง!',
+          type: 'WIN',
+          card: numberCard,
+          durationMs: 4500,
+        };
+        const finalState: GameState = {
+          ...gameState,
+          gamePhase: 'GAME_OVER',
+          winner: player,
+          players: updatedPlayers,
+          actionAnnouncement: winAnnouncement,
+          currentEquationState: null,
+        };
+        setGameState(finalState);
+        syncOnlineGameState(finalState, winAnnouncement);
+        return;
+      }
     }
 
     const nextBlankIdx = blankIdx + 1;
@@ -1308,6 +1453,7 @@ export default function App() {
 
     eqState.currentBlankIndex = isFinished ? blankIdx : nextBlankIdx;
     eqState.allFilled = isFinished;
+    eqState.hasDrawnForCurrentBlank = false;
     if (!isFinished) {
       eqState.assignedPlayerId = eqState.equation.blanks[nextBlankIdx].assignedPlayerId!;
     }
@@ -1318,7 +1464,7 @@ export default function App() {
       currentEquationState: eqState,
       logs: [
         createLog(
-          `Player ${player.letter} เติมค่า ${targetBlank.variable} = ${targetBlank.filledValue} (${targetBlank.color})`,
+          `Player ${player.letter} เติมค่า ${targetBlank.variable} = ${targetBlank.filledValue}`,
           'play'
         ),
         ...gameState.logs,
@@ -1339,23 +1485,29 @@ export default function App() {
 
     const drawnCard = st.deck.shift()!;
     const targetPlayer = st.players[playerIndex];
+    const updatedHand = [...targetPlayer.hand, drawnCard];
     const updatedPlayer: Player = {
       ...targetPlayer,
-      hand: [...targetPlayer.hand, drawnCard],
+      hand: updatedHand,
     };
     const updatedPlayers = [...st.players];
     updatedPlayers[playerIndex] = updatedPlayer;
     st.players = updatedPlayers;
 
+    const hasNumberCardNow = updatedHand.some((c) => c.type === 'NUMBER');
+
+    st.currentEquationState = {
+      ...st.currentEquationState,
+      hasDrawnForCurrentBlank: true,
+      statusMessage: hasNumberCardNow
+        ? `🎴 ${targetPlayer.name} จั่วไพ่แล้ว! เลือกไพ่ตัวเลข (0-9) เพื่อเติมลงในสมการ`
+        : `🎴 ${targetPlayer.name} จั่วไพ่แล้วแต่ยังไม่มีไพ่ตัวเลข สามารถส่งต่อให้ผู้เล่นถัดไปได้`,
+    };
+
     showToast(`🎴 ${targetPlayer.name} จั่วไพ่ 1 ใบ`);
 
-    if (drawnCard.type === 'NUMBER' && drawnCard.color === blank.color) {
-      setGameState(st);
-      handleFillBlank(blankIdx, drawnCard, playerId);
-    } else {
-      setGameState(st);
-      handleSkipPlayerCascading(blankIdx);
-    }
+    setGameState(st);
+    syncOnlineGameState(st);
   };
 
   const handleSkipPlayerCascading = (blankIdx: number) => {
@@ -1366,10 +1518,12 @@ export default function App() {
     const playerList = gameState.players;
 
     const currentAssigneeIdx = playerList.findIndex((p) => p.id === blank.assignedPlayerId);
-    const nextPlayer = playerList[(currentAssigneeIdx + 1) % playerList.length];
+    const nextPlayerIdx = getNextActivePlayerIndex(playerList, currentAssigneeIdx >= 0 ? currentAssigneeIdx : 0, 1, 1);
+    const nextPlayer = playerList[nextPlayerIdx];
 
     blank.assignedPlayerId = nextPlayer.id;
     eqState.assignedPlayerId = nextPlayer.id;
+    eqState.hasDrawnForCurrentBlank = false;
 
     const nextState = {
       ...gameState,
@@ -1454,6 +1608,8 @@ export default function App() {
     let updatedPlayers = [...gameState.players];
     let newDisqualified = [...gameState.currentEquationState.disqualifiedPlayerIds];
     let pendingFreeDiscard: string | null = null;
+    let deckToUse = gameState.deck;
+    let discardPileToUse = gameState.discardPile;
 
     if (isCorrect) {
       pendingFreeDiscard = playerId;
@@ -1465,17 +1621,24 @@ export default function App() {
           p.id === playerId ? { ...p, hand: [...p.hand, drawnPenalty] } : p
         );
       }
+      deckToUse = st.deck;
+      discardPileToUse = st.discardPile;
       newDisqualified.push(playerId);
     }
+
+    const remainingActivePlayers = gameState.players.filter(
+      (p) => !p.isFinished && !newDisqualified.includes(p.id)
+    );
+    const allDisqualified = remainingActivePlayers.length === 0;
 
     const resultState: EquationResultState = {
       answeredPlayerId: playerId,
       answeringPlayerId: playerId,
       submittedText: answerText,
       correct: isCorrect,
-      solution: sol,
-      steps: sol.explanationSteps || [],
-      correctAnswerDisplay: sol.displayAnswer,
+      solution: isCorrect || allDisqualified ? sol : undefined,
+      steps: isCorrect || allDisqualified ? (sol.explanationSteps || []) : [],
+      correctAnswerDisplay: isCorrect || allDisqualified ? sol.displayAnswer : undefined,
       pendingFreeDiscardPlayerId: pendingFreeDiscard,
     };
 
@@ -1489,12 +1652,14 @@ export default function App() {
     const nextState: GameState = {
       ...gameState,
       players: updatedPlayers,
+      deck: deckToUse,
+      discardPile: discardPileToUse,
       currentEquationState: updatedEqState,
       logs: [
         createLog(
           isCorrect
             ? `✅ ถูกต้อง! Player ${player.letter} ตอบถูก (${answerText} ${eq.targetUnit}) ได้สิทธิ์ทิ้งไพ่ฟรี 1 ใบ!`
-            : `❌ ตอบผิด! Player ${player.letter} ตอบ (${answerText}) ถูกปรับจั่ว 1 ใบ และหมดสิทธิ์ตอบข้อนี้`,
+            : `❌ ตอบผิด! Player ${player.letter} ตอบ (${answerText}) ถูกปรับจั่ว 1 ใบ และหมดสิทธิ์ตอบข้อนี้ (ซ่อนเฉลยให้ผู้เล่นอื่นชิงตอบต่อ)`,
           isCorrect ? 'win' : 'penalty'
         ),
         ...gameState.logs,
@@ -1519,16 +1684,16 @@ export default function App() {
         }
       }, 1500);
     } else if (!isCorrect) {
-      if (newDisqualified.length >= gameState.players.length) {
-        // Everyone was disqualified, auto-close after 3.2s
+      if (allDisqualified) {
+        // Everyone was disqualified, auto-close after 5s so they can read the revealed solution
         setTimeout(() => {
           handleCloseEquation();
-        }, 3200);
+        }, 5000);
       } else {
-        // Other players can still answer, reset buzzer after 3.5s
+        // Other players can still answer, reset buzzer after 2.4s (without showing answer)
         setTimeout(() => {
           handleResetEquationForRetry();
-        }, 3500);
+        }, 2400);
       }
     }
   };
@@ -1787,14 +1952,14 @@ export default function App() {
             const bot = gameStateRef.current?.players.find((p) => p.id === assignedP.id);
             if (!bot) return;
 
-            const matching = bot.hand.filter(
-              (c) => c.type === 'NUMBER' && c.color === currentBlank.color
-            );
+            const matching = bot.hand.filter((c) => c.type === 'NUMBER');
 
             if (matching.length > 0) {
               handleFillBlank(latestEq.currentBlankIndex, matching[0], assignedP.id);
-            } else {
+            } else if (!latestEq.hasDrawnForCurrentBlank) {
               handlePlayerDrawForColor(assignedP.id, latestEq.currentBlankIndex);
+            } else {
+              handleSkipPlayerCascading(latestEq.currentBlankIndex);
             }
           }, 2000);
 

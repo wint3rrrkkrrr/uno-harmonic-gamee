@@ -257,11 +257,19 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
               </div>
 
               <div className="space-y-2.5 text-xs text-slate-300">
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <strong className="text-cyan-300">ขั้นตอนที่ 1 (เติมตัวแปร):</strong> ผู้เล่นตามที่สุ่มได้นำไพ่ตัวเลข (0–9 สีใดก็ได้) จากมือมาเติมในช่องว่าง
+                <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10 space-y-1">
+                  <strong className="text-cyan-300">ขั้นตอนที่ 1 (เติมตัวแปร):</strong>
+                  <p>
+                    ผู้เล่นที่ได้รับสิทธิ์นำไพ่ตัวเลข (0–9 สีใดก็ได้) จากมือมาเติมในช่องว่าง
+                    หากไม่มีไพ่ตัวเลขในมือ <strong>ต้องกดจั่วไพ่ก่อน 1 ใบเท่านั้น</strong> (ไม่สามารถกดข้ามตาได้ทันที) หากจั่วแล้วยังไม่มีไพ่ตัวเลข จึงจะสามารถส่งต่อสิทธิ์ให้ผู้เล่นคนถัดไปได้
+                  </p>
                 </div>
-                <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10">
-                  <strong className="text-amber-300">ขั้นตอนที่ 2 (ชิงกดตอบ):</strong> เมื่อเติมค่าครบ ใครคำนวณคำตอบได้ก่อน ให้กดปุ่ม <strong>THE ANSWER IS!</strong> และพิมพ์คำตอบ
+                <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10 space-y-1">
+                  <strong className="text-amber-300">ขั้นตอนที่ 2 (ชิงกดแย่งตอบ & จับเวลา 10 วินาที):</strong>
+                  <p>
+                    เมื่อเติมค่าครบ ใครคำนวณคำตอบได้ก่อนให้กดปุ่ม <strong>THE ANSWER IS!</strong>
+                    เมื่อกดแล้วระบบจะ<strong>จับเวลาตอบเพียง 10 วินาที</strong>ให้พิมพ์คำตอบและส่ง (หากพิมพ์ไม่ทันภายใน 10 วิ จะถือว่าตอบผิด โดนปรับจั่ว 1 ใบ และหมดสิทธิ์ตอบข้อนี้)
+                  </p>
                 </div>
                 <div className="p-3 bg-slate-900/80 rounded-xl border border-white/10 space-y-1">
                   <strong className="text-emerald-300">รางวัลตอบถูก (ฟรี Discard):</strong>
@@ -272,7 +280,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ isOpen, onClose 
                   </ul>
                 </div>
                 <div className="p-3 bg-slate-900/80 rounded-xl border border-rose-500/30 text-rose-200">
-                  <strong>บทลงโทษตอบผิด:</strong> ถูกปรับจั่วไพ่ 1 ใบ และหมดสิทธิ์ตอบในข้อนั้น
+                  <strong>บทลงโทษตอบผิด / หมดเวลา:</strong> ถูกปรับจั่วไพ่ 1 ใบ และหมดสิทธิ์ตอบในข้อนั้น โดยระบบจะเปิดให้ผู้เล่นคนอื่นชิงกดตอบต่อได้
                 </div>
               </div>
             </div>

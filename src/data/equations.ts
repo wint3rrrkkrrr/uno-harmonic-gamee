@@ -34,7 +34,6 @@ export const EQUATION_CARDS_DATA: EquationCard[] = [
 
       const answers = [
         String(tRounded),
-        `${f}/1`,
         `1/${f}`,
         `${tRounded} s`,
         `${tRounded}s`,

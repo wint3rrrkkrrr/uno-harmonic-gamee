@@ -117,118 +117,110 @@ export const StartScreen: React.FC<StartScreenProps> = ({
             className="relative z-10 w-full max-w-xl flex flex-col items-center text-center space-y-6 sm:space-y-8"
           >
             {/* Header / Title Area */}
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-500/20 via-cyan-500/20 to-emerald-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-mono font-bold tracking-widest uppercase shadow-lg shadow-cyan-950/40 backdrop-blur-md">
-                <Atom className="w-4 h-4 text-cyan-400 animate-spin [animation-duration:12s]" />
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-400/30 text-cyan-300 text-[11px] font-mono font-bold tracking-wider uppercase">
+                <Atom className="w-3.5 h-3.5 text-cyan-400 animate-spin [animation-duration:12s]" />
                 <span>Simple Harmonic Motion Physics Card Game</span>
               </div>
 
-              <h1 className="text-6xl sm:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-cyan-300 to-amber-300 drop-shadow-[0_4px_16px_rgba(6,182,212,0.3)]">
+              <h1 className="text-5xl sm:text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-cyan-300 to-amber-300 drop-shadow-[0_2px_12px_rgba(6,182,212,0.25)]">
                 HARMONIC
               </h1>
 
-              <p className="text-sm sm:text-base text-slate-300 max-w-md mx-auto leading-relaxed font-medium">
-                เกมการ์ดประลองไหวพริบสไตล์ UNO ผสมการคำนวณสูตรฟิสิกส์ SHM
-                ท้าทายความเร็ว ชิงสิทธิ์ตอบโจทย์ และประกาศ <span className="text-amber-300 font-bold">“HARMONIC!”</span> เพื่อคว้าชัยชนะ
+              <p className="text-xs sm:text-sm text-slate-300 max-w-sm sm:max-w-md mx-auto leading-relaxed">
+                เกมการ์ดประลองไหวพริบสไตล์ UNO ผสมสูตรฟิสิกส์ SHM
+                ชิงสิทธิ์ตอบโจทย์ และประกาศ <span className="text-amber-300 font-bold">“HARMONIC!”</span> เพื่อคว้าชัย
               </p>
             </div>
 
             {/* Game Mode Cards Grid */}
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {/* ONLINE MULTIPLAYER CARD */}
               <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onOpenOnlineLobby}
-                className="group relative glass-panel-elevated rounded-3xl p-6 text-left border border-cyan-500/30 hover:border-cyan-400/80 shadow-2xl transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-slate-900/90 rounded-2xl p-4 sm:p-5 text-left border border-cyan-500/30 hover:border-cyan-400/80 shadow-xl transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
               >
-                {/* Glow aura on hover */}
-                <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/20 rounded-full blur-2xl group-hover:bg-cyan-500/40 transition-all pointer-events-none" />
-
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 shadow-lg shadow-cyan-500/30">
-                      <Globe className="w-6 h-6 text-white" />
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md">
+                      <Globe className="w-5 h-5 text-white" />
                     </div>
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-bold font-mono">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] font-bold font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       LIVE
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-black text-white group-hover:text-cyan-200 transition-colors">
+                  <h3 className="text-base sm:text-lg font-black text-white group-hover:text-cyan-200 transition-colors">
                     เล่นออนไลน์
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-relaxed">
                     สร้างห้องเล่นกับเพื่อน แชร์รหัสห้อง 4 หลัก หรือจับคู่ประลองความเร็วแบบเรียลไทม์
                   </p>
                 </div>
 
-                <div className="mt-5 flex items-center gap-2 text-cyan-300 font-bold text-xs group-hover:translate-x-1 transition-transform">
-                  <span>เข้าสู่ล็อบบี้ออนไลน์</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="mt-3 sm:mt-4 flex items-center gap-1 text-cyan-300 font-bold text-xs">
+                  <span>เข้าสู่ล็อบบี้</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               </motion.div>
 
               {/* SINGLEPLAYER VS AI BOTS CARD */}
               <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setView('SETUP')}
-                className="group relative glass-panel-elevated rounded-3xl p-6 text-left border border-indigo-500/30 hover:border-indigo-400/80 shadow-2xl transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
+                className="group relative bg-slate-900/90 rounded-2xl p-4 sm:p-5 text-left border border-indigo-500/30 hover:border-indigo-400/80 shadow-xl transition-all cursor-pointer overflow-hidden flex flex-col justify-between"
               >
-                {/* Glow aura on hover */}
-                <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl group-hover:bg-indigo-500/40 transition-all pointer-events-none" />
-
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-                      <Bot className="w-6 h-6" />
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md">
+                      <Bot className="w-5 h-5 text-white" />
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 text-[11px] font-bold font-mono">
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[10px] font-bold font-mono">
                       OFFLINE
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-black text-white group-hover:text-indigo-200 transition-colors">
+                  <h3 className="text-base sm:text-lg font-black text-white group-hover:text-indigo-200 transition-colors">
                     เล่นกับบอท AI
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    ฝึกทักษะการคำนวณและตัดแต้มกับบอทอัจฉริยะ ปรับจำนวนผู้เล่นและลำดับที่นั่งได้อิสระ
+                  <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 leading-relaxed">
+                    ฝึกทักษะการคำนวณและตัดแต้มกับบอท ปรับจำนวนผู้เล่นและลำดับที่นั่งได้อิสระ
                   </p>
                 </div>
 
-                <div className="mt-5 flex items-center gap-2 text-indigo-300 font-bold text-xs group-hover:translate-x-1 transition-transform">
-                  <span>ตั้งค่าและเริ่มเกม</span>
-                  <ArrowRight className="w-4 h-4" />
+                <div className="mt-3 sm:mt-4 flex items-center gap-1 text-indigo-300 font-bold text-xs">
+                  <span>ตั้งค่าและเริ่มเล่น</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               </motion.div>
             </div>
 
             {/* Quick Navigation: Tutorial, Rules & Formulas */}
-            <div className="w-full flex flex-wrap items-center justify-center gap-2.5 pt-1">
+            <div className="w-full flex flex-wrap items-center justify-center gap-2 pt-1">
               <button
                 onClick={onOpenTutorial}
-                className="py-2.5 px-4 bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 hover:from-emerald-500/50 hover:to-cyan-500/50 text-emerald-200 hover:text-white font-black rounded-2xl text-xs border border-emerald-400/50 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/40 animate-pulse hover:animate-none"
+                className="py-2 px-3 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 font-bold rounded-xl text-xs border border-emerald-500/40 transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <GraduationCap className="w-4 h-4 text-emerald-300" />
-                <span>โหมดสอนเล่น (Interactive Tutorial)</span>
+                <GraduationCap className="w-3.5 h-3.5 text-emerald-400" />
+                <span>สอนเล่น</span>
               </button>
 
               <button
                 onClick={onOpenHowToPlay}
-                className="py-2.5 px-4 glass-panel-subtle hover:bg-slate-800 text-slate-300 hover:text-white font-bold rounded-2xl text-xs border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                className="py-2 px-3 bg-slate-900/80 hover:bg-slate-800 text-slate-300 font-medium rounded-xl text-xs border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <BookOpen className="w-4 h-4 text-cyan-400" />
-                <span>กติกา & สัญลักษณ์ไพ่</span>
+                <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
+                <span>กติกา</span>
               </button>
 
               <button
                 onClick={onOpenAbout}
-                className="py-2.5 px-4 glass-panel-subtle hover:bg-slate-800 text-slate-300 hover:text-white font-bold rounded-2xl text-xs border border-white/10 hover:border-white/20 transition-all flex items-center gap-2 cursor-pointer shadow-md"
+                className="py-2 px-3 bg-slate-900/80 hover:bg-slate-800 text-slate-300 font-medium rounded-xl text-xs border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span>สรุปสูตรฟิสิกส์ SHM</span>
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>สูตร SHM</span>
               </button>
             </div>
           </motion.div>
