@@ -92,7 +92,7 @@ export const ActionBanner: React.FC<ActionBannerProps> = ({ announcement }) => {
   return (
     <div
       id="action-announcement-banner"
-      className="fixed top-12 sm:top-14 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-auto max-w-[92vw] sm:max-w-md select-none"
+      className="fixed top-24 sm:top-28 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-auto max-w-[92vw] sm:max-w-md select-none"
     >
       <AnimatePresence>
         {announcement && (

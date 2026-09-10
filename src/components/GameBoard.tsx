@@ -4,6 +4,7 @@ import { Card, GameState } from '../types/game';
 import { CardView } from './CardView';
 import { ActionBanner } from './ActionBanner';
 import { canPlayCard, getColorBg } from '../utils/cardUtils';
+import { soundManager } from '../utils/audio';
 import {
   BookOpen,
   LogOut,
@@ -18,6 +19,8 @@ import {
   Trophy,
   Skull,
   GraduationCap,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 
 interface GameBoardProps {
@@ -222,10 +225,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       <AnimatePresence>
         {warningMsg && (
           <motion.div
-            initial={{ opacity: 0, y: 15, scale: 0.9 }}
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-rose-950/95 border border-rose-500/80 rounded-full shadow-2xl text-rose-100 text-xs font-bold flex items-center gap-2 backdrop-blur-xl pointer-events-none max-w-[90vw] text-center"
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="fixed top-24 sm:top-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-rose-950/95 border border-rose-500/80 rounded-full shadow-2xl text-rose-100 text-xs font-bold flex items-center gap-2 backdrop-blur-xl pointer-events-none max-w-[90vw] text-center"
           >
             <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
             <span>{warningMsg}</span>
@@ -504,7 +507,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed top-14 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full bg-slate-900/95 border border-cyan-500/40 text-cyan-300 text-[11px] font-bold shadow-xl flex items-center gap-1.5 backdrop-blur-md"
+            className="fixed top-24 sm:top-28 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full bg-slate-900/95 border border-cyan-500/40 text-cyan-300 text-[11px] font-bold shadow-xl flex items-center gap-1.5 backdrop-blur-md"
           >
             <Sparkles className="w-3 h-3 animate-spin text-cyan-400" />
             <span>
