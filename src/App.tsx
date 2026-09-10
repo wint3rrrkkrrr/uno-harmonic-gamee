@@ -163,15 +163,19 @@ export default function App() {
   // ================= SUPABASE REALTIME MULTIPLAYER =================
   // Handle Realtime updates from Supabase for current room
   const handleRoomRecordUpdate = useCallback((record: RoomRecord) => {
-    // 0. Check if current local player was kicked from room
+    // Check if player is still in online session
     const currentLocal = localOnlinePlayerRef.current;
-    if (currentLocal && record.players) {
+    if (!currentLocal) return;
+
+    // 0. Check if current local player was removed/kicked from room
+    if (record.players) {
       const stillInRoom = record.players.some((p) => p.id === currentLocal.id);
       if (!stillInRoom && !currentLocal.isHost) {
         if (supabaseUnsubRef.current) {
           supabaseUnsubRef.current();
           supabaseUnsubRef.current = null;
         }
+        localOnlinePlayerRef.current = null;
         clearRoomSession();
         setOnlineRoomInfo(null);
         setLocalOnlinePlayer(null);
@@ -468,19 +472,32 @@ export default function App() {
   };
 
   const handleLeaveRoom = async () => {
-    if (onlineRoomInfo && localOnlinePlayer) {
-      await leaveRoomInSupabase(onlineRoomInfo.roomId, localOnlinePlayer.id);
-    }
+    const currentRoom = onlineRoomInfo?.roomId || gameState?.roomId;
+    const currentPlayerId = localOnlinePlayer?.id;
+
+    // 1. Immediately unsubscribe from Realtime channel so incoming events are discarded
     if (supabaseUnsubRef.current) {
       supabaseUnsubRef.current();
       supabaseUnsubRef.current = null;
     }
+    localOnlinePlayerRef.current = null;
+
+    // 2. Clear saved sessions and local state immediately
     clearRoomSession();
     setOnlineRoomInfo(null);
     setLocalOnlinePlayer(null);
     setGameState(null);
     setShowOnlineLobby(false);
     showToast('🚪 ออกจากห้องออนไลน์แล้ว');
+
+    // 3. Notify Supabase in background
+    if (currentRoom && currentPlayerId) {
+      try {
+        await leaveRoomInSupabase(currentRoom, currentPlayerId);
+      } catch (err) {
+        console.warn('Failed to leave room in Supabase:', err);
+      }
+    }
   };
 
   const handleStartOnlineGame = async () => {
@@ -680,11 +697,31 @@ export default function App() {
   };
 
   const handleResetGame = () => {
+    const currentRoom = onlineRoomInfo?.roomId || gameState?.roomId;
+    const currentPlayerId = localOnlinePlayer?.id;
+
+    // 1. Immediately unsubscribe from Realtime channel so incoming events cannot trigger re-entry
+    if (supabaseUnsubRef.current) {
+      supabaseUnsubRef.current();
+      supabaseUnsubRef.current = null;
+    }
+    localOnlinePlayerRef.current = null;
+
+    // 2. Clear stored sessions and game states
+    clearRoomSession();
     clearSavedGameState();
     setHasSavedGame(false);
     setGameState(null);
     setOnlineRoomInfo(null);
     setLocalOnlinePlayer(null);
+    setShowOnlineLobby(false);
+
+    // 3. Notify Supabase in background if leaving an online game
+    if (currentRoom && currentPlayerId) {
+      leaveRoomInSupabase(currentRoom, currentPlayerId).catch((err) => {
+        console.warn('Failed to leave room on reset in Supabase:', err);
+      });
+    }
   };
 
   // Helper to ensure deck has cards (recycle discard pile if needed)
@@ -1395,7 +1432,9 @@ export default function App() {
     const equationCard = eqDeck.shift()!;
     eqDiscard.push(equationCard);
 
-    const activePlayerIds = st.players.map((p) => p.id);
+    // ONLY assign active players who are NOT finished and have cards in hand!
+    const activePlayers = st.players.filter((p) => !p.isFinished && p.hand.length > 0);
+    const activePlayerIds = (activePlayers.length > 0 ? activePlayers : st.players).map((p) => p.id);
     const shuffledPlayerIds = shuffle([...activePlayerIds]);
 
     const updatedBlanks = equationCard.blanks.map((b, idx) => ({
@@ -1535,7 +1574,16 @@ export default function App() {
     eqState.allFilled = isFinished;
     eqState.hasDrawnForCurrentBlank = false;
     if (!isFinished) {
-      eqState.assignedPlayerId = eqState.equation.blanks[nextBlankIdx].assignedPlayerId!;
+      const activeRemaining = updatedPlayers.filter((p) => !p.isFinished && p.hand.length > 0);
+      let nextAssigneeId = eqState.equation.blanks[nextBlankIdx].assignedPlayerId!;
+      const assigneePlayer = updatedPlayers.find((p) => p.id === nextAssigneeId);
+      if (!assigneePlayer || assigneePlayer.isFinished || assigneePlayer.hand.length === 0) {
+        if (activeRemaining.length > 0) {
+          nextAssigneeId = activeRemaining[0].id;
+          eqState.equation.blanks[nextBlankIdx].assignedPlayerId = nextAssigneeId;
+        }
+      }
+      eqState.assignedPlayerId = nextAssigneeId;
     }
 
     const nextState: GameState = {
@@ -1595,11 +1643,11 @@ export default function App() {
 
     const eqState = { ...gameState.currentEquationState };
     const blank = eqState.equation.blanks[blankIdx];
-    const playerList = gameState.players;
+    const activePlayers = gameState.players.filter((p) => !p.isFinished && p.hand.length > 0);
+    if (activePlayers.length === 0) return;
 
-    const currentAssigneeIdx = playerList.findIndex((p) => p.id === blank.assignedPlayerId);
-    const nextPlayerIdx = getNextActivePlayerIndex(playerList, currentAssigneeIdx >= 0 ? currentAssigneeIdx : 0, 1, 1);
-    const nextPlayer = playerList[nextPlayerIdx];
+    const currentAssigneeIdx = activePlayers.findIndex((p) => p.id === blank.assignedPlayerId);
+    const nextPlayer = activePlayers[(currentAssigneeIdx + 1) % activePlayers.length];
 
     blank.assignedPlayerId = nextPlayer.id;
     eqState.assignedPlayerId = nextPlayer.id;
@@ -1707,7 +1755,7 @@ export default function App() {
     }
 
     const remainingActivePlayers = gameState.players.filter(
-      (p) => !p.isFinished && !newDisqualified.includes(p.id)
+      (p) => !p.isFinished && p.hand.length > 0 && !newDisqualified.includes(p.id)
     );
     const allDisqualified = remainingActivePlayers.length === 0;
 
@@ -2048,7 +2096,7 @@ export default function App() {
       } else if (eqState.allFilled && !eqState.claimedByPlayerId && !eqState.resultState) {
         // Bot buzz-in if all blanks filled and no one has buzzed in yet
         const eligibleBots = gameState.players.filter(
-          (p) => p.isBot && !eqState.disqualifiedPlayerIds.includes(p.id)
+          (p) => p.isBot && !p.isFinished && p.hand.length > 0 && !eqState.disqualifiedPlayerIds.includes(p.id)
         );
         if (eligibleBots.length > 0) {
           const buzzTimer = setTimeout(() => {
@@ -2062,7 +2110,7 @@ export default function App() {
               !latestEq.resultState
             ) {
               const currentEligibleBots = latest.players.filter(
-                (p) => p.isBot && !latestEq.disqualifiedPlayerIds.includes(p.id)
+                (p) => p.isBot && !p.isFinished && p.hand.length > 0 && !latestEq.disqualifiedPlayerIds.includes(p.id)
               );
               if (currentEligibleBots.length > 0) {
                 const randomBot = currentEligibleBots[Math.floor(Math.random() * currentEligibleBots.length)];
@@ -2170,7 +2218,13 @@ export default function App() {
       {/* Online Multiplayer Lobby Modal */}
       <OnlineLobbyModal
         isOpen={showOnlineLobby}
-        onClose={() => setShowOnlineLobby(false)}
+        onClose={() => {
+          if (onlineRoomInfo && (!gameState || gameState.gamePhase === 'LOBBY' || gameState.gamePhase === 'MENU')) {
+            handleLeaveRoom();
+          } else {
+            setShowOnlineLobby(false);
+          }
+        }}
         roomInfo={onlineRoomInfo}
         localPlayer={localOnlinePlayer}
         onCreateRoom={handleCreateRoom}

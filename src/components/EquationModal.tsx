@@ -54,11 +54,15 @@ export const EquationModal: React.FC<EquationModalProps> = ({
   const [selectedDiscardCardId, setSelectedDiscardCardId] = useState<string | null>(null);
   const [isTimedOut, setIsTimedOut] = useState(false);
   const [answerTimeLeft, setAnswerTimeLeft] = useState<number>(10);
+  const [fillBlankTimeLeft, setFillBlankTimeLeft] = useState<number>(10);
 
   const { equation, currentBlankIndex, allFilled, claimedByPlayerId, disqualifiedPlayerIds, resultState } = state;
 
   const maxTime = equation.difficulty === 'EASY' ? 10 : equation.difficulty === 'MEDIUM' ? 20 : 30;
   const [timeLeft, setTimeLeft] = useState<number>(maxTime);
+
+  // Active players who are still in the game (not finished / have cards)
+  const activeUnfinishedPlayers = players.filter((p) => !p.isFinished && p.hand.length > 0);
 
   useEffect(() => {
     setAnswerInput('');
@@ -71,6 +75,53 @@ export const EquationModal: React.FC<EquationModalProps> = ({
       setIsTimedOut(false);
     }
   }, [allFilled, state.equation.id, claimedByPlayerId, resultState, maxTime]);
+
+  // 10-Second Filling Blank Countdown for the assigned player
+  useEffect(() => {
+    if (allFilled || !state.assignedPlayerId || resultState) return;
+
+    setFillBlankTimeLeft(10);
+
+    const interval = setInterval(() => {
+      setFillBlankTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          // 10s Time is up for playing number card!
+          const activeAssignedP = players.find((p) => p.id === state.assignedPlayerId);
+          if (!activeAssignedP) return 0;
+
+          const myTurnToAct = !isOnline || isHost || localPlayerId === activeAssignedP.id;
+          if (myTurnToAct) {
+            const numCards = activeAssignedP.hand.filter((c) => c.type === 'NUMBER');
+            if (numCards.length > 0) {
+              onFillBlank(currentBlankIndex, numCards[0], activeAssignedP.id);
+            } else if (!state.hasDrawnForCurrentBlank) {
+              onPlayerDrawForColor(activeAssignedP.id, currentBlankIndex);
+            } else {
+              onSkipPlayerCascading(currentBlankIndex);
+            }
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [
+    allFilled,
+    state.assignedPlayerId,
+    currentBlankIndex,
+    resultState,
+    isOnline,
+    isHost,
+    localPlayerId,
+    players,
+    state.hasDrawnForCurrentBlank,
+    onFillBlank,
+    onPlayerDrawForColor,
+    onSkipPlayerCascading,
+  ]);
 
   // Overall Buzzer Phase Countdown (before anyone buzzes in)
   useEffect(() => {
@@ -233,15 +284,16 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                     key={b.id}
                     className={`p-2.5 rounded-xl border transition-all ${
                       isCurrentActive
-                        ? 'border-cyan-400 bg-cyan-950/60 shadow-md ring-1 ring-cyan-400/50'
+                        ? 'border-2 border-rose-500 bg-rose-950/40 shadow-lg shadow-rose-500/30 ring-2 ring-rose-500/60 animate-pulse'
                         : b.filledValue !== null
                         ? 'border-emerald-500/50 bg-emerald-950/20'
                         : 'border-white/10 bg-slate-950/50'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold text-slate-200 text-[11px]">
-                        ช่องที่ {idx + 1}: {b.nameTh}
+                      <span className="font-bold text-slate-200 text-[11px] flex items-center gap-1">
+                        {isCurrentActive && <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />}
+                        <span>ช่องที่ {idx + 1}: {b.nameTh}</span>
                       </span>
                       <span className="text-[9px] font-mono text-cyan-300 bg-slate-900 px-1.5 py-0.2 rounded border border-white/10">
                         {b.variable}
@@ -255,6 +307,8 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                         className={`min-w-[40px] px-2.5 py-0.5 rounded text-center font-black border ${
                           b.filledValue !== null
                             ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 text-sm sm:text-base font-mono'
+                            : isCurrentActive
+                            ? 'border-rose-400 bg-rose-950 text-rose-200 animate-bounce text-xs font-bold shadow-md'
                             : 'border-cyan-400/60 bg-slate-950 text-slate-400 animate-pulse text-xs'
                         }`}
                       >
@@ -266,7 +320,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                     {/* Player Assignment Status */}
                     <div className="mt-1 text-[10px] flex items-center justify-between text-slate-400">
                       <span>ผู้เติม:</span>
-                      <span className="font-bold text-slate-200">
+                      <span className={`font-bold ${isCurrentActive ? 'text-rose-300 animate-pulse' : 'text-slate-200'}`}>
                         {assignedP ? `${assignedP.name} (${assignedP.letter})` : 'กำลังสุ่ม...'}
                       </span>
                     </div>
@@ -290,22 +344,53 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
           {/* PHASE 1: FILLING BLANKS */}
           {!allFilled && currentBlank && assignedPlayer && (
-            <div className="p-4 sm:p-5 rounded-3xl bg-indigo-950/50 border border-indigo-400/40 space-y-4 shadow-xl text-left">
-              <div className="flex items-center justify-between">
+            <div className="p-4 sm:p-5 rounded-3xl bg-slate-950/90 border-2 border-rose-500/90 shadow-2xl shadow-rose-500/30 ring-2 ring-rose-500/60 space-y-3.5 text-left transition-all">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <span className="text-xs font-mono text-cyan-300 tracking-wider uppercase font-bold">
-                    ตาของผู้เล่นที่ต้องเติมค่า (PLAYER TURN):
+                  <span className="text-xs font-mono text-rose-300 tracking-wider uppercase font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                    <span>ตาของผู้เล่นที่ต้องลงการ์ดเลข (10 วินาที):</span>
                   </span>
                   <div className="text-base sm:text-lg font-black text-white flex items-center gap-2 mt-0.5">
-                    <span className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white flex items-center justify-center text-xs font-mono font-black shadow-md">
+                    <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 via-rose-600 to-amber-500 text-white flex items-center justify-center text-xs font-mono font-black shadow-lg shadow-rose-500/40 border border-rose-300/60 animate-bounce">
                       {assignedPlayer.letter}
                     </span>
-                    <span>{assignedPlayer.name}</span>
+                    <span className="text-rose-100 font-black">{assignedPlayer.name}</span>
                     <span className="text-xs text-slate-300 font-normal">
                       (เลือกไพ่ตัวเลข 0–9 สีใดก็ได้จากมือ)
                     </span>
                   </div>
                 </div>
+
+                {/* 10-Second Filling Timer Badge */}
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`px-3 py-1 rounded-full font-mono text-xs font-black flex items-center gap-1.5 shadow-md transition-all border ${
+                      fillBlankTimeLeft <= 3
+                        ? 'bg-rose-600 text-white border-rose-400 animate-bounce shadow-rose-600/50'
+                        : fillBlankTimeLeft <= 5
+                        ? 'bg-amber-500 text-slate-950 border-amber-300 shadow-amber-500/40'
+                        : 'bg-emerald-500 text-slate-950 border-emerald-300 shadow-emerald-500/40'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5 animate-spin" />
+                    <span>เวลาลงไพ่: {fillBlankTimeLeft}s</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 10s Progress Bar */}
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 ease-linear rounded-full ${
+                    fillBlankTimeLeft <= 3
+                      ? 'bg-rose-500'
+                      : fillBlankTimeLeft <= 5
+                      ? 'bg-amber-400'
+                      : 'bg-emerald-400'
+                  }`}
+                  style={{ width: `${(fillBlankTimeLeft / 10) * 100}%` }}
+                />
               </div>
 
               {/* Status Message from cascade */}
@@ -325,13 +410,13 @@ export const EquationModal: React.FC<EquationModalProps> = ({
 
                 if (!isMyBlankTurn) {
                   return (
-                    <div className="p-4 rounded-2xl bg-slate-900/80 border border-cyan-500/20 text-center space-y-2">
-                      <div className="text-sm font-bold text-cyan-300 animate-pulse flex items-center justify-center gap-2">
-                        <Atom className="w-4 h-4 animate-spin text-cyan-400" />
-                        <span>กำลังรอ Player {assignedPlayer?.letter} ({assignedPlayer?.name}) เติมค่า...</span>
+                    <div className="p-4 rounded-2xl bg-slate-900/80 border border-rose-500/30 text-center space-y-2">
+                      <div className="text-sm font-bold text-rose-300 animate-pulse flex items-center justify-center gap-2">
+                        <Atom className="w-4 h-4 animate-spin text-rose-400" />
+                        <span>กำลังรอ Player {assignedPlayer?.letter} ({assignedPlayer?.name}) ลงการ์ดเลข...</span>
                       </div>
                       <p className="text-xs text-slate-400">
-                        ผู้เล่นต้องนำ Number Card จากมือมาเติมค่าในช่องนี้
+                        ผู้เล่นมีเวลา 10 วินาทีในการลงไพ่ตัวเลข (หากหมดเวลาจะลงไพ่อัตโนมัติ)
                       </p>
                     </div>
                   );
@@ -340,15 +425,16 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                 if (availableNumberCards.length > 0) {
                   return (
                     <div>
-                      <p className="text-xs text-slate-300 mb-2.5">
-                        เลือก Number Card (ตัวเลข 0–9 สีใดก็ได้) จากมือของ {assignedPlayer.name} เพื่อเติมค่า:
+                      <p className="text-xs text-slate-200 mb-2.5 font-bold flex items-center gap-1.5 text-rose-300">
+                        <span>🔥</span>
+                        <span>เลือก Number Card (ตัวเลข 0–9 สีใดก็ได้) จากมือของคุณเพื่อเติมค่า:</span>
                       </p>
-                      <div className="flex flex-wrap gap-3 items-center">
+                      <div className="flex flex-wrap gap-3 items-center p-2 bg-slate-900/80 rounded-2xl border border-rose-500/40">
                         {availableNumberCards.map((card) => (
                           <button
                             key={card.id}
                             onClick={() => onFillBlank(currentBlankIndex, card, assignedPlayer.id)}
-                            className="group transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                            className="group transition-transform hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-rose-500/40 hover:ring-rose-400 rounded-xl"
                           >
                             <CardView card={card} size="sm" isPlayable={true} />
                           </button>
@@ -372,7 +458,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                       <div className="flex flex-wrap gap-2.5">
                         <button
                           onClick={() => onPlayerDrawForColor(assignedPlayer.id, currentBlankIndex)}
-                          className="px-5 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-cyan-950/40 transition-transform hover:scale-105 flex items-center gap-2 cursor-pointer animate-pulse"
+                          className="px-5 py-3 bg-gradient-to-r from-rose-500 via-amber-500 to-rose-500 hover:from-rose-400 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-rose-950/40 transition-transform hover:scale-105 flex items-center gap-2 cursor-pointer animate-pulse border border-rose-200"
                         >
                           <Sparkles className="w-4 h-4" />
                           <span>🎴 กดจั่วไพ่ 1 ใบ ({assignedPlayer.name})</span>
@@ -491,7 +577,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                         <>
                           <button
                             onClick={() => {
-                              const eligible = players.find((p) => !disqualifiedPlayerIds.includes(p.id));
+                              const eligible = activeUnfinishedPlayers.find((p) => !disqualifiedPlayerIds.includes(p.id));
                               if (eligible) onClaimAnswer(eligible.id);
                             }}
                             className="w-full py-4 px-6 bg-gradient-to-r from-amber-400 via-rose-500 to-cyan-400 hover:from-amber-300 hover:to-cyan-300 text-slate-950 font-black text-lg sm:text-2xl rounded-2xl shadow-2xl shadow-rose-500/30 transform hover:scale-[1.02] active:scale-95 transition-all tracking-wider animate-pulse border border-white/30 cursor-pointer flex items-center justify-center gap-2"
@@ -504,7 +590,7 @@ export const EquationModal: React.FC<EquationModalProps> = ({
                             หรือเลือกผู้เล่นที่ต้องการแย่งตอบ:
                           </div>
                           <div className="flex flex-wrap justify-center gap-2">
-                            {players.map((p) => {
+                            {activeUnfinishedPlayers.map((p) => {
                               const isDisq = disqualifiedPlayerIds.includes(p.id);
                               return (
                                 <button

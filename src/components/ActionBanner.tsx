@@ -92,16 +92,16 @@ export const ActionBanner: React.FC<ActionBannerProps> = ({ announcement }) => {
   return (
     <div
       id="action-announcement-banner"
-      className="fixed bottom-28 sm:bottom-32 right-3 sm:right-6 z-40 pointer-events-none w-auto max-w-[300px] sm:max-w-md select-none"
+      className="fixed top-12 sm:top-14 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-auto max-w-[92vw] sm:max-w-md select-none"
     >
       <AnimatePresence>
         {announcement && (
           <motion.div
             key={announcement.id || announcement.title}
-            initial={{ opacity: 0, y: 15, scale: 0.9 }}
+            initial={{ opacity: 0, y: -20, scale: 0.92 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: -15, scale: 0.92 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
             className={`relative overflow-hidden rounded-2xl border px-3.5 py-2.5 shadow-2xl backdrop-blur-xl flex items-center gap-2.5 ${getTypeStyle()}`}
           >
             {/* Action Icon or Player Badge */}

@@ -246,12 +246,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             return (
               <motion.div
                 key={p.id}
-                animate={isTurn ? { scale: 1.05 } : { scale: 1 }}
+                animate={isTurn && !isFinished ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                transition={isTurn && !isFinished ? { repeat: Infinity, duration: 1.2 } : {}}
                 className={`relative px-2 sm:px-3 py-1 rounded-xl border transition-all flex items-center gap-1.5 sm:gap-2 backdrop-blur-sm ${
                   isFinished
                     ? 'border-emerald-500/40 bg-emerald-950/30 opacity-70'
                     : isTurn
-                    ? 'border-cyan-400 bg-cyan-950/80 shadow-md shadow-cyan-500/20 ring-1 ring-cyan-400/60'
+                    ? 'border-2 border-rose-500 bg-rose-950/80 shadow-lg shadow-rose-500/40 ring-2 ring-rose-500/70 animate-pulse'
                     : isMe
                     ? 'border-indigo-400/40 bg-indigo-950/30'
                     : 'border-white/10 bg-slate-900/60'
@@ -263,7 +264,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     isFinished
                       ? 'bg-emerald-500 text-slate-950'
                       : isTurn
-                      ? 'bg-gradient-to-br from-cyan-400 to-blue-600 text-slate-950 font-black'
+                      ? 'bg-gradient-to-br from-rose-500 via-rose-600 to-amber-500 text-white font-black animate-bounce'
                       : isMe
                       ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white'
                       : 'bg-slate-800 text-slate-300'
@@ -279,7 +280,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
                 <div className="text-left leading-tight">
                   <div className="flex items-center gap-1">
-                    <span className="font-bold text-[11px] sm:text-xs text-slate-200 max-w-[65px] sm:max-w-[90px] truncate">
+                    <span className={`font-bold text-[11px] sm:text-xs max-w-[65px] sm:max-w-[90px] truncate ${isTurn && !isFinished ? 'text-rose-200' : 'text-slate-200'}`}>
                       {p.name}
                     </span>
                     {isMe && (
@@ -311,7 +312,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 </div>
 
                 {isTurn && !isFinished && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
                 )}
               </motion.div>
             );
@@ -434,7 +435,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         </div>
 
         {/* ================= BOTTOM: MOBILE ERGONOMIC PLAYER HAND DOCK ================= */}
-        <div className="w-full bg-slate-900/90 border border-white/10 rounded-2xl p-2 sm:p-3 shadow-xl flex-shrink-0 backdrop-blur-md">
+        <div
+          className={`w-full ${
+            isMyTurn
+              ? 'bg-slate-900/95 border-2 border-rose-500/80 shadow-2xl shadow-rose-950/50 ring-1 ring-rose-500/50'
+              : 'bg-slate-900/90 border border-white/10'
+          } rounded-2xl p-2 sm:p-3 shadow-xl flex-shrink-0 backdrop-blur-md transition-all`}
+        >
           {/* Hand Header Bar with Responsive HARMONIC button */}
           <div className="flex items-center justify-between mb-1.5 px-1">
             <div className="flex items-center gap-1.5">
