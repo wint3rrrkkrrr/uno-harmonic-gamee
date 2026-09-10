@@ -10,6 +10,7 @@ interface GameOverModalProps {
   finishedPlayers?: FinishedPlayer[];
   turnsCount: number;
   players: Player[];
+  isOnline?: boolean;
   onPlayAgain: () => void;
   onBackToMenu: () => void;
 }
@@ -21,6 +22,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   finishedPlayers = [],
   turnsCount,
   players,
+  isOnline = false,
   onPlayAgain,
   onBackToMenu,
 }) => {
@@ -221,7 +223,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               className="py-3.5 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black rounded-2xl text-sm transition-all hover:scale-105 active:scale-95 shadow-xl shadow-emerald-950/50 cursor-pointer flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>เล่นอีกครั้ง</span>
+              <span>{isOnline ? 'กลับห้องรอเริ่มเกม (Lobby)' : 'เล่นอีกครั้ง'}</span>
             </button>
 
             <button

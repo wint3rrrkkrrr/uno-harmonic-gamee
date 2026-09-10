@@ -270,6 +270,23 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'KICK_PLAYER': {
+          if (!currentRoomId || !currentUserId) return;
+          const room = rooms.get(currentRoomId);
+          if (!room || room.status !== 'LOBBY' || room.hostId !== currentUserId) return;
+
+          const targetIndex = room.players.findIndex((p) => p.id === message.playerId && p.id !== currentUserId);
+          if (targetIndex !== -1) {
+            const kicked = room.players[targetIndex];
+            if (kicked.ws && kicked.ws.readyState === WebSocket.OPEN) {
+              kicked.ws.send(JSON.stringify({ type: 'KICKED', message: 'คุณถูกหัวหน้าห้องเตะออกจากห้อง' }));
+            }
+            room.players.splice(targetIndex, 1);
+            broadcastRoomUpdate(room);
+          }
+          break;
+        }
+
         case 'TOGGLE_READY': {
           if (!currentRoomId || !currentUserId) return;
           const room = rooms.get(currentRoomId);

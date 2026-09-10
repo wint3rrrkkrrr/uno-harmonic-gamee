@@ -730,6 +730,65 @@ export async function claimEquationAnswerAtomic(
 }
 
 /**
+ * Kicks a player from the room in Supabase (Host only during Lobby or Preparation).
+ */
+export async function kickPlayerFromRoomInSupabase(
+  roomCode: string,
+  kickedPlayerId: string,
+  kickedPlayerName: string
+): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const cleanCode = roomCode.trim().toUpperCase();
+  try {
+    const { data: room } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('room_code', cleanCode)
+      .maybeSingle();
+
+    if (!room) return;
+
+    const remainingPlayers = (room.players || []).filter((p: RoomPlayer) => p.id !== kickedPlayerId);
+
+    const currentState = room.state || {};
+    const updatedGameState: GameState = {
+      ...currentState,
+      players: (currentState.players || []).filter((p: Player) => p.id !== kickedPlayerId),
+      logs: [
+        {
+          id: `log-${Date.now()}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `🚫 หัวหน้าห้องเตะผู้เล่น ${kickedPlayerName} ออกจากห้อง`,
+          type: 'penalty',
+        },
+        ...(currentState.logs || []),
+      ],
+      version: (room.version || 1) + 1,
+    };
+
+    const { data: updatedRecord, error } = await supabase
+      .from('rooms')
+      .update({
+        players: remainingPlayers,
+        state: updatedGameState,
+        version: updatedGameState.version,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('room_code', cleanCode)
+      .select()
+      .single();
+
+    if (!error && updatedRecord) {
+      broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
+    }
+  } catch (err) {
+    console.error('Failed to kick player in Supabase:', err);
+  }
+}
+
+/**
  * Updates Lobby players (e.g. adding bots, toggling ready, host kicking)
  */
 export async function updateLobbyPlayersInSupabase(
@@ -807,6 +866,91 @@ export async function leaveRoomInSupabase(roomCode: string, playerId: string): P
     }
   } catch (err) {
     console.error('Failed to leave room in Supabase:', err);
+  }
+}
+
+/**
+ * Returns an online room back to the LOBBY state after a match ends (Play Again).
+ */
+export async function returnRoomToLobbyInSupabase(roomCode: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const cleanCode = roomCode.trim().toUpperCase();
+  try {
+    const { data: room } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('room_code', cleanCode)
+      .maybeSingle();
+
+    if (!room) return;
+
+    const hostId = room.host_id;
+    // Reset players ready status: host is ready, bots are ready, guests need to press ready
+    const resetPlayers: RoomPlayer[] = (room.players || []).map((p: RoomPlayer) => ({
+      ...p,
+      isReady: p.isHost || p.isBot || p.id === hostId,
+    }));
+
+    const nextVersion = (room.version || 1) + 1;
+    const lobbyState: GameState = {
+      players: resetPlayers.map((rp) => ({
+        id: rp.id,
+        letter: rp.letter,
+        name: rp.name,
+        hand: [],
+        isBot: rp.isBot,
+        calledHarmonic: false,
+      })),
+      currentPlayerIndex: 0,
+      direction: 1,
+      deck: [],
+      discardPile: [],
+      currentColor: 'RED',
+      equationDeck: [],
+      equationDiscardPile: [],
+      currentEquationState: null,
+      drawnCardChoice: null,
+      gamePhase: 'LOBBY',
+      gameMode: room.state?.gameMode || 'FIND_WINNER',
+      pendingDraw: 0,
+      finishedPlayers: [],
+      winner: null,
+      loser: null,
+      turnsCount: 0,
+      logs: [
+        {
+          id: `log-${Date.now()}`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: '🔄 กลับสู่ห้องเตรียมพร้อม (Lobby) เพื่อเริ่มการแข่งขันรอบใหม่',
+          type: 'info',
+        },
+        ...(room.state?.logs || []),
+      ],
+      lastActionTime: Date.now(),
+      roomId: cleanCode,
+      version: nextVersion,
+    };
+
+    const { data: updatedRecord, error } = await supabase
+      .from('rooms')
+      .update({
+        status: 'LOBBY',
+        players: resetPlayers,
+        state: lobbyState,
+        version: nextVersion,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('room_code', cleanCode)
+      .select()
+      .single();
+
+    if (!error && updatedRecord) {
+      broadcastRoomRecord(cleanCode, updatedRecord as RoomRecord);
+    }
+  } catch (err) {
+    console.error('Failed to return room to lobby in Supabase:', err);
   }
 }
 

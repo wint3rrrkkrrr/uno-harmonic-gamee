@@ -7,6 +7,7 @@ import {
   Crown,
   Bot,
   User,
+  UserMinus,
   Plus,
   Play,
   LogOut,
@@ -30,6 +31,7 @@ interface OnlineLobbyModalProps {
   onJoinRoom: (roomId: string, playerName: string) => void;
   onAddBot: () => void;
   onRemoveBot: (botId: string) => void;
+  onKickPlayer?: (playerId: string, playerName: string) => void;
   onToggleReady: () => void;
   onStartGame: () => void;
   onLeaveRoom?: () => void;
@@ -51,6 +53,7 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
   onJoinRoom,
   onAddBot,
   onRemoveBot,
+  onKickPlayer,
   onToggleReady,
   onStartGame,
   onLeaveRoom,
@@ -424,13 +427,21 @@ export const OnlineLobbyModal: React.FC<OnlineLobbyModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Remove Bot button */}
-                      {isHost && p.isBot && (
+                      {/* Host Actions: Kick Player / Remove Bot */}
+                      {isHost && !p.isHost && p.id !== localPlayer?.id && (
                         <button
-                          onClick={() => onRemoveBot(p.id)}
-                          className="text-xs text-rose-400 hover:text-rose-300 px-2.5 py-1 rounded-lg hover:bg-rose-950/40 cursor-pointer border border-rose-500/20"
+                          onClick={() => {
+                            if (p.isBot) {
+                              onRemoveBot(p.id);
+                            } else if (onKickPlayer) {
+                              onKickPlayer(p.id, p.name);
+                            }
+                          }}
+                          title={`เตะ ${p.name} ออกจากห้อง`}
+                          className="text-xs text-rose-300 hover:text-white bg-rose-950/60 hover:bg-rose-900/90 px-2.5 py-1 rounded-xl border border-rose-500/40 cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-sm ml-2 flex-shrink-0"
                         >
-                          ลบ
+                          <UserMinus className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{p.isBot ? 'ลบ' : 'เตะ'}</span>
                         </button>
                       )}
                     </div>

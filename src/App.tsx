@@ -46,6 +46,8 @@ import {
   updateLobbyPlayersInSupabase,
   updateRoomGameModeInSupabase,
   leaveRoomInSupabase,
+  kickPlayerFromRoomInSupabase,
+  returnRoomToLobbyInSupabase,
   subscribeToSupabaseRoom,
   getSavedRoomSession,
   clearRoomSession,
@@ -80,6 +82,10 @@ export default function App() {
     isHost: boolean;
     isReady?: boolean;
   } | null>(null);
+  const localOnlinePlayerRef = useRef(localOnlinePlayer);
+  useEffect(() => {
+    localOnlinePlayerRef.current = localOnlinePlayer;
+  }, [localOnlinePlayer]);
   const [onlineError, setOnlineError] = useState<string | null>(null);
   const [localSinglePlayerId, setLocalSinglePlayerId] = useState<string | null>(() => {
     try {
@@ -157,6 +163,25 @@ export default function App() {
   // ================= SUPABASE REALTIME MULTIPLAYER =================
   // Handle Realtime updates from Supabase for current room
   const handleRoomRecordUpdate = useCallback((record: RoomRecord) => {
+    // 0. Check if current local player was kicked from room
+    const currentLocal = localOnlinePlayerRef.current;
+    if (currentLocal && record.players) {
+      const stillInRoom = record.players.some((p) => p.id === currentLocal.id);
+      if (!stillInRoom && !currentLocal.isHost) {
+        if (supabaseUnsubRef.current) {
+          supabaseUnsubRef.current();
+          supabaseUnsubRef.current = null;
+        }
+        clearRoomSession();
+        setOnlineRoomInfo(null);
+        setLocalOnlinePlayer(null);
+        setGameState(null);
+        setShowOnlineLobby(false);
+        showToast('🚫 คุณถูกหัวหน้าห้องเตะออกจากห้อง');
+        return;
+      }
+    }
+
     // 1. Update online room information
     setOnlineRoomInfo((prev) => ({
       roomId: record.room_code,
@@ -210,11 +235,14 @@ export default function App() {
           (prevState?.gamePhase === 'LOBBY' || prevState?.gamePhase === 'MENU' || !prevState) &&
           incomingState.gamePhase !== 'LOBBY' &&
           incomingState.gamePhase !== 'MENU';
+        const isReturningToLobby = incomingState.gamePhase === 'LOBBY';
 
-        if (!prevState || incomingVersion >= prevVersion || isGameStarting) {
+        if (!prevState || incomingVersion >= prevVersion || isGameStarting || isReturningToLobby) {
           // If room transitions to PLAYING, dismiss lobby modal immediately
           if (incomingState.gamePhase !== 'LOBBY' && incomingState.gamePhase !== 'MENU') {
             setShowOnlineLobby(false);
+          } else if (incomingState.gamePhase === 'LOBBY') {
+            setShowOnlineLobby(true);
           }
           return {
             ...incomingState,
@@ -303,8 +331,9 @@ export default function App() {
   );
 
   // Online Lobby Handlers
-  const handleCreateRoom = async (playerName: string) => {
+  const handleCreateRoom = async (playerName: string, mode: GameMode = 'FIND_WINNER') => {
     setOnlineError(null);
+    setOnlineGameMode(mode);
     if (!isSupabaseConfigured()) {
       setShowSupabaseConfig(true);
       setOnlineError('กรุณาตั้งค่า Supabase URL และ Anon Key ก่อนสร้างห้องออนไลน์');
@@ -312,15 +341,48 @@ export default function App() {
     }
 
     try {
-      const { roomInfo, localPlayer, state } = await createRoomInSupabase(playerName);
+      const { roomInfo, localPlayer, state } = await createRoomInSupabase(playerName, mode);
       setOnlineRoomInfo(roomInfo);
       setLocalOnlinePlayer(localPlayer);
       setGameState(state);
       setupRoomSubscription(roomInfo.roomId);
-      showToast(`🎉 สร้างห้อง ${roomInfo.roomId} สำเร็จ! ส่งรหัสให้เพื่อนเข้าเล่นได้เลย`);
+      showToast(
+        `🎉 สร้างห้อง ${roomInfo.roomId} สำเร็จ! (${
+          mode === 'FIND_LOSER' ? 'โหมดคนสุดท้ายแพ้' : 'โหมดใครหมดก่อนชนะ'
+        })`
+      );
     } catch (err: any) {
       console.error('Create room error:', err);
       setOnlineError(err?.message || 'ไม่สามารถสร้างห้องได้ กรุณาตรวจสอบการตั้งค่า Supabase');
+    }
+  };
+
+  const handleChangeOnlineGameMode = async (mode: GameMode) => {
+    setOnlineGameMode(mode);
+    if (onlineRoomInfo && (localOnlinePlayer?.isHost ?? true)) {
+      setOnlineRoomInfo((prev) => (prev ? { ...prev, gameMode: mode } : prev));
+      await updateRoomGameModeInSupabase(onlineRoomInfo.roomId, mode);
+      showToast(
+        `🔄 เปลี่ยนโหมดเป็น: ${
+          mode === 'FIND_LOSER'
+            ? 'ผู้เหลือไพ่คนสุดท้ายแพ้ (Last Man Standing)'
+            : 'ใครหมดก่อนชนะ (First to Finish)'
+        }`
+      );
+    }
+  };
+
+  const handleReturnToOnlineLobby = async () => {
+    if (gameState?.roomId) {
+      try {
+        await returnRoomToLobbyInSupabase(gameState.roomId);
+        setShowOnlineLobby(true);
+        showToast('🔄 กลับสู่ห้องรอเริ่มเกม (Lobby)');
+      } catch (err) {
+        console.error('Failed to return to online lobby:', err);
+      }
+    } else {
+      handleResetGame();
     }
   };
 
@@ -379,6 +441,18 @@ export default function App() {
     const updatedPlayers = onlineRoomInfo.players.filter((p) => p.id !== botId);
     setOnlineRoomInfo({ ...onlineRoomInfo, players: updatedPlayers });
     await updateLobbyPlayersInSupabase(onlineRoomInfo.roomId, updatedPlayers);
+  };
+
+  const handleKickPlayerFromRoom = async (playerId: string, playerName: string) => {
+    if (!onlineRoomInfo || !localOnlinePlayer?.isHost) return;
+    try {
+      const updatedPlayers = onlineRoomInfo.players.filter((p) => p.id !== playerId);
+      setOnlineRoomInfo({ ...onlineRoomInfo, players: updatedPlayers });
+      await kickPlayerFromRoomInSupabase(onlineRoomInfo.roomId, playerId, playerName);
+      showToast(`🚫 เตะ ${playerName} ออกจากห้องเรียบร้อยแล้ว`);
+    } catch (err) {
+      console.error('Failed to kick player:', err);
+    }
   };
 
   const handleToggleReady = async () => {
@@ -458,17 +532,23 @@ export default function App() {
       attempts++;
     }
 
+    const selectedMode = onlineRoomInfo.gameMode || onlineGameMode || 'FIND_WINNER';
+    const modeText =
+      selectedMode === 'FIND_LOSER'
+        ? 'โหมด: ผู้เหลือไพ่คนสุดท้าย (Last Man Standing)'
+        : 'โหมด: ใครหมดก่อนชนะ (First to Finish)';
+
     const initialAnnouncement: ActionAnnouncement = {
       id: `ann-${Date.now()}`,
       title: '🎮 เริ่มต้นเกมออนไลน์ HARMONIC!',
-      subtitle: `แจกไพ่คนละ 7 ใบ ไพ่เปิดใบแรกคือ ${firstCard.color} ${firstCard.value ?? firstCard.type}`,
+      subtitle: `${modeText} | ไพ่เปิดใบแรกคือ ${firstCard.color} ${firstCard.value ?? firstCard.type}`,
       type: 'INFO',
       card: firstCard,
       durationMs: 3000,
     };
 
     const initialLogs: GameLogEntry[] = [
-      createLog(`🎮 ห้อง ${onlineRoomInfo.roomId}: เริ่มเกมแล้ว! แจกไพ่คนละ 7 ใบ`, 'info'),
+      createLog(`🎮 ห้อง ${onlineRoomInfo.roomId}: เริ่มเกมแล้ว! (${modeText}) แจกไพ่คนละ 7 ใบ`, 'info'),
       createLog(`ไพ่ใบแรกบนกองทิ้งคือ ${firstCard.color} ${firstCard.value ?? firstCard.type}`, 'play'),
     ];
 
@@ -488,7 +568,7 @@ export default function App() {
       currentEquationState: null,
       drawnCardChoice: null,
       gamePhase: 'PLAYING',
-      gameMode: 'FIND_WINNER',
+      gameMode: selectedMode,
       pendingDraw: 0,
       finishedPlayers: [],
       winner: null,
@@ -2097,9 +2177,12 @@ export default function App() {
         onJoinRoom={handleJoinRoom}
         onAddBot={handleAddBotToRoom}
         onRemoveBot={handleRemoveBotFromRoom}
+        onKickPlayer={handleKickPlayerFromRoom}
         onToggleReady={handleToggleReady}
         onStartGame={handleStartOnlineGame}
         onLeaveRoom={handleLeaveRoom}
+        selectedGameMode={onlineRoomInfo?.gameMode || onlineGameMode}
+        onChangeGameMode={handleChangeOnlineGameMode}
         onOpenSupabaseConfig={() => setShowSupabaseConfig(true)}
         isSupabaseReady={isSupabaseReady}
         isConnected={isSupabaseReady}
@@ -2184,9 +2267,10 @@ export default function App() {
           finishedPlayers={gameState.finishedPlayers}
           turnsCount={gameState.turnsCount}
           players={gameState.players}
+          isOnline={Boolean(gameState.roomId)}
           onPlayAgain={() => {
             if (gameState.roomId) {
-              handleStartOnlineGame();
+              handleReturnToOnlineLobby();
             } else {
               const configs = gameState.players.map((p) => ({
                 name: p.name,
